@@ -1,0 +1,9 @@
+tree_search_default:
+  database:
+    # General settings
+    db_path: null                       # Path to persist database (null = in-memory only)
+    in_memory: true                     # Keep database in memory for faster access
+    log_prompts: true                  # If true, log all prompts and responses into the database
+
+    # Tree-search evolution parameters
+    puct_exploration_constant: 1
