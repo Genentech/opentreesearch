@@ -1,0 +1,1284 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tree Search Program Viewer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f9fc;
+      --canvas: #fbfdff;
+      --ink: #172033;
+      --muted: #64748b;
+      --line: #dbe4f0;
+      --panel: #ffffff;
+      --blue-deep: #173f7a;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      height: 100vh;
+      min-height: 620px;
+    }
+
+    .main {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px 20px;
+      align-items: start;
+      padding: 10px 22px 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(175deg, #ffffff 0%, #f9fbfe 55%, #f5f8fc 100%);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+    }
+
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      color: var(--muted);
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .hero-chart-wrap {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .color-scale-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      padding: 0 0 0 14px;
+      margin: 0;
+      border: none;
+      border-left: 1px solid rgba(219, 228, 240, 0.85);
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 148px;
+    }
+
+    .color-scale-hint {
+      font-weight: 650;
+      color: var(--ink);
+    }
+
+    .color-scale-field {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .color-scale-panel input[type="number"] {
+      width: 84px;
+      height: 26px;
+      padding: 0 7px;
+      border: 1px solid #cfd9e8;
+      border-radius: 6px;
+      font: 11px var(--mono);
+      color: var(--ink);
+      background: #fff;
+      appearance: textfield;
+      -moz-appearance: textfield;
+    }
+
+    .color-scale-panel input[type="number"]::-webkit-outer-spin-button,
+    .color-scale-panel input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .color-scale-panel input[type="number"]:focus {
+      outline: none;
+      border-color: var(--blue-deep);
+      box-shadow: 0 0 0 2px rgba(23, 63, 122, 0.12);
+    }
+
+    .color-scale-panel > .small-button {
+      height: 26px;
+      padding: 0 9px;
+      font-size: 11px;
+      align-self: flex-start;
+      margin-top: 2px;
+    }
+
+    .hero-right {
+      justify-self: end;
+      align-self: start;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .controls button,
+    .small-button {
+      height: 30px;
+      border: 1px solid #cfd9e8;
+      background: #ffffff;
+      border-radius: 7px;
+      padding: 0 12px;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(23, 32, 51, 0.05);
+    }
+
+    .controls button:hover,
+    .small-button:hover {
+      border-color: #b8c6d8;
+      background: #fafcfe;
+    }
+
+    .vizwrap {
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #tree {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+      background: var(--canvas);
+    }
+
+    #tree.dragging {
+      cursor: grabbing;
+    }
+
+    #progressChart {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1400 / 212;
+      max-height: 220px;
+    }
+
+    .progress-grid {
+      stroke: #edf2f8;
+      stroke-width: 1.25;
+    }
+
+    .progress-axis {
+      stroke: #b7c4d5;
+      stroke-width: 1.45;
+    }
+
+    .progress-line {
+      fill: none;
+      stroke-width: 3.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .progress-dot {
+      stroke: #ffffff;
+      stroke-width: 2.6;
+      cursor: pointer;
+    }
+
+    .progress-dot.failed {
+      fill: #ffffff;
+      stroke: #94a3b8;
+    }
+
+    .progress-dot:hover {
+      stroke: var(--ink);
+    }
+
+    .progress-dot.failed:hover {
+      stroke: var(--ink);
+    }
+
+    .progress-dot-hit {
+      cursor: pointer;
+    }
+
+    #progressChartTooltip {
+      pointer-events: none;
+    }
+
+    .progress-tip-bg {
+      fill: rgba(255, 255, 255, 0.97);
+      stroke: var(--line);
+      stroke-width: 1;
+      filter: drop-shadow(0 2px 10px rgba(23, 32, 51, 0.12));
+    }
+
+    .progress-tip-text {
+      fill: var(--ink);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .progress-label {
+      fill: var(--muted);
+      font-size: 13px;
+    }
+
+    .edge {
+      fill: none;
+      stroke: #cbd7e6;
+      stroke-width: 1.6;
+      opacity: 0.76;
+    }
+
+    .edge.selected-line {
+      stroke: var(--blue-deep);
+      stroke-width: 2.8;
+      opacity: 1;
+    }
+
+    .node {
+      cursor: pointer;
+    }
+
+    .node .hit-area {
+      fill: transparent;
+      stroke: none;
+      pointer-events: all;
+    }
+
+    .node .node-dot {
+      stroke: #ffffff;
+      stroke-width: 2.4;
+      filter: drop-shadow(0 4px 10px rgba(23, 32, 51, 0.14));
+    }
+
+    .node .node-dot.node-dot-failed {
+      fill: var(--canvas);
+      stroke: #94a3b8;
+      filter: drop-shadow(0 2px 6px rgba(23, 32, 51, 0.08));
+    }
+
+    .node text {
+      pointer-events: none;
+      font-size: 11px;
+      fill: var(--ink);
+      paint-order: stroke;
+      stroke: rgba(255, 255, 255, 0.82);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+    }
+
+    .node .node-id {
+      fill: #43526a;
+      font-weight: 650;
+    }
+
+    .node .node-value {
+      font-size: 10px;
+      font-weight: 760;
+      fill: var(--ink);
+    }
+
+    .node.selected .node-dot {
+      stroke: var(--blue-deep);
+      stroke-width: 4;
+    }
+
+    .node .best-ring {
+      fill: none;
+      stroke: var(--blue-deep);
+      stroke-width: 2.6;
+      pointer-events: none;
+    }
+
+    .node .best-badge {
+      fill: var(--blue-deep);
+      stroke: none;
+    }
+
+    .node .best-label {
+      fill: #ffffff;
+      font-size: 8px;
+      font-weight: 760;
+      letter-spacing: 0.4px;
+      paint-order: normal;
+      stroke: none;
+    }
+
+    .node.best .node-dot {
+      stroke: #ffffff;
+      stroke-width: 2.4;
+    }
+
+    .node.best .node-dot.node-dot-failed {
+      stroke: #94a3b8;
+    }
+
+    .node.selected .node-dot.node-dot-failed {
+      stroke: var(--blue-deep);
+      stroke-width: 4;
+    }
+
+    .scorebar {
+      border: 1px solid #b9c7d9;
+      border-radius: 999px;
+    }
+
+    .side {
+      border-left: 1px solid var(--line);
+      background: var(--panel);
+      overflow: auto;
+      padding: 18px;
+    }
+
+    .statgrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 10px;
+      background: #f8fbff;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 2px;
+    }
+
+    .stat span {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .details h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .section-head h3 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .small-button {
+      height: 28px;
+      padding: 0 9px;
+      font-size: 12px;
+    }
+
+    .id {
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.4;
+      word-break: break-all;
+      color: var(--muted);
+    }
+
+    .fields {
+      margin: 16px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .field {
+      display: grid;
+      grid-template-columns: 122px minmax(0, 1fr);
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .field span:first-child {
+      color: var(--muted);
+    }
+
+    .field code {
+      font-family: var(--mono);
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    pre {
+      margin: 12px 0 0;
+      padding: 12px;
+      max-height: 360px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f8fbff;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .summary-block {
+      margin-top: 10px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f8fbff;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--ink);
+    }
+
+    .summary-block h4 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .summary-block ul {
+      margin: 4px 0 0;
+      padding-left: 20px;
+    }
+
+    .summary-block li + li {
+      margin-top: 4px;
+    }
+
+    .summary-block p {
+      margin: 4px 0;
+    }
+
+    .summary-block p + ul {
+      margin-top: 2px;
+    }
+
+    .summary-block code {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: #eef3fb;
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #1f2a3d;
+    }
+
+
+    .code-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      grid-template-rows: auto 1fr;
+      background: rgba(23, 32, 51, 0.36);
+      backdrop-filter: blur(5px);
+      padding: 28px;
+    }
+
+    .code-modal.open {
+      display: grid;
+    }
+
+    .code-modal-panel {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 24px 70px rgba(23, 32, 51, 0.24);
+    }
+
+    .code-modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .code-modal-head h2 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .code-modal pre {
+      max-height: none;
+      height: 100%;
+      margin: 0;
+      border: 0;
+      border-radius: 0 0 8px 8px;
+      background: #f8fbff;
+      font-size: 13px;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) auto;
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
+      }
+
+      .side {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+        max-height: 42vh;
+      }
+
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        align-items: stretch;
+        padding: 14px 16px 16px;
+      }
+
+      .hero-right {
+        justify-self: stretch;
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .color-scale-panel {
+        border-left: none;
+        border-top: 1px solid rgba(219, 228, 240, 0.85);
+        padding: 10px 0 0;
+        min-width: 0;
+      }
+
+      .controls {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <main class="main">
+      <header class="hero">
+        <div class="hero-chart-wrap">
+          <h1>Tree Search Program Viewer</h1>
+          <svg id="progressChart" role="img" aria-label="Search progress: best combined score over iterations"></svg>
+        </div>
+        <div class="hero-right">
+          <div class="controls">
+            <button id="collapseAll">Collapse</button>
+            <button id="reset" title="Reset pan, zoom, and expansion">Reset view</button>
+          </div>
+          <div class="color-scale-panel">
+            <span class="color-scale-hint">Colors</span>
+            <label class="color-scale-field"><span>Low</span><input type="number" id="colorMinInput" step="any" aria-label="Color scale low" /></label>
+            <label class="color-scale-field"><span>High</span><input type="number" id="colorMaxInput" step="any" aria-label="Color scale high" /></label>
+            <button type="button" class="small-button" id="colorScaleAutoBtn" title="Restore automatic low/high from data">Reset</button>
+          </div>
+        </div>
+      </header>
+      <section class="vizwrap">
+        <svg id="tree" role="img" aria-label="Program tree search visualization"
+          preserveAspectRatio="xMinYMin slice"></svg>
+      </section>
+    </main>
+    <aside class="side">
+      <section class="statgrid" id="stats"></section>
+      <section class="details" id="details"></section>
+    </aside>
+  </div>
+  <div class="code-modal" id="codeModal" role="dialog" aria-modal="true" aria-labelledby="codeModalTitle">
+    <div class="code-modal-panel">
+      <div class="code-modal-head">
+        <h2 id="codeModalTitle">Program Code</h2>
+        <button class="small-button" id="closeCodeModal">Close</button>
+      </div>
+      <pre><code id="codeModalBody"></code></pre>
+    </div>
+  </div>
+  <script id="checkpoint-data" type="application/json">{"checkpoint": "/Users/wangz204/Documents/code/opentreesearch/output/func_min/run_1/checkpoints/checkpoint_20", "program_count": 21, "summary_count": 21, "best_program": {"id": "27a2dd92-56ea-4d75-8810-8ccb97c1c859", "depth": 3, "iteration": 19, "current_iteration": 20, "metrics": {"runs_successfully": 1.0, "value_score": 0.9755770086680963, "distance_score": 0.8530197640048902, "combined_score": 1.2971757551239393}, "language": "python", "timestamp": 1779063305.2318459, "saved_at": 1779063331.435172}, "metadata": {"best_program_id": "27a2dd92-56ea-4d75-8810-8ccb97c1c859", "last_iteration": 20}, "programs": [{"id": "03e7b993-d420-4e79-9009-1ba7f9993197", "parent_id": "e1d44b0d-cad6-49be-866c-9e734b8b9f20", "children_ids": [], "depth": 2, "iteration_found": 15, "visits": 1, "language": "python", "timestamp": 1779063122.509045, "metrics": {"runs_successfully": 1.0, "value_score": 0.9010710797297941, "distance_score": 0.19998422445414832, "combined_score": 0.4965090700956286}, "combined_score": 0.4965090700956286, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9502441741942592, "distance_score": 0.8459390240309707, "combined_score": 1.271930959780521}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing.\n    \n    This version uses enhanced parameters for broader exploration and\n    slower cooling to better escape local minima in complex landscapes.\n    \"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # --- Enhanced Simulated Annealing parameters ---\n    # Initial temperature: Increased for broader initial exploration,\n    # allowing larger jumps and higher acceptance probability for worse solutions.\n    initial_temp = 50.0  \n    \n    # Cooling rate: Decreased (closer to 1.0) for slower cooling,\n    # allowing more iterations at higher temperatures to escape local minima.\n    cooling_rate = 0.997 \n    \n    # Initial scale for perturbing solutions: Increased for larger initial step sizes,\n    # promoting wider exploration in the early stages of the search.\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.15\n    # -----------------------------------------------\n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    # The best solution found so far is tracked separately\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine perturbation standard deviation: it decreases with temperature,\n        # leading to smaller steps as the search refines.\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise to the current solution.\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within the defined search bounds.\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion:\n        # 1. Always accept if the neighbor is better (lower function value).\n        # 2. If the neighbor is worse, accept it with a probability that decreases\n        #    as the temperature cools or as the difference in value increases.\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Only calculate acceptance probability if temperature is significantly above zero\n        elif current_temp > 1e-10: \n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution if the current solution is better than the best found so far.\n        # This ensures that even if current_value temporarily increases (to escape a local minimum),\n        # the overall best found is still tracked.\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration, reducing acceptance probability of worse solutions.\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value\n\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#15", "summary_markdown": "The program implements an enhanced version of simulated annealing with tuned hyper-parameters to improve exploration and escape local minima in complex optimization landscapes.\n\n- Initial temperature increased from `10.0` to `50.0` for broader initial exploration.\n- Cooling rate slowed from `0.99` to `0.997`, enabling more iterations at higher temperatures.\n- Perturbation scale factor increased from `0.1` to `0.15` of the search range, allowing larger initial step sizes.", "diff_markdown": "The solution modifies three key hyper-parameters—initial temperature, cooling rate, and perturbation scale—to enhance search behavior.\n\n- Initial temperature raised from 10.0 to 50.0 to increase early-stage exploration and acceptance of worse solutions.\n- Cooling rate reduced from 0.99 to 0.997, causing slower temperature decay and prolonged high-temperature exploration.\n- Perturbation scale factor increased from `0.1 * range` to `0.15 * range`, resulting in larger initial perturbations and wider early-stage search coverage.", "generated_at": 1779138016.24242}}, {"id": "04fcf6a0-7e07-406b-937f-0e7e1bb21090", "parent_id": "1bbe4504-cb45-4708-9b95-7fa8b3fd1451", "children_ids": [], "depth": 3, "iteration_found": 18, "visits": 1, "language": "python", "timestamp": 1779063229.393343, "metrics": {"runs_successfully": 0.0, "combined_score": 0.0, "error": "Missing run_search function"}, "combined_score": 0.0, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.971002330985772, "distance_score": 0.8151148879806521, "combined_score": 1.2721062952972135}, "code": "import numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing.\n    Adjusted parameters for improved global minimum search and local minima escape.\n    Tuned parameters for a better balance between exploration and exploitation\n    within the given iteration budget, aiming for a lower final temperature.\n    \"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # Simulated Annealing parameters:\n    # Initial temperature: High for broader initial exploration. (Kept at 50.0)\n    initial_temp = 50.0  \n    # Cooling rate: Increased (further from 1) for faster cooling. This allows\n    # the algorithm to reach much lower temperatures within the typical 1000\n    # iterations, improving convergence to a precise minimum. This change\n    # balances the initial broad exploration with effective exploitation.\n    cooling_rate = 0.99  # Changed from 0.997 to allow faster cooling and better convergence\n    # Initial scale for perturbing solutions: Increased for larger initial jumps\n    # across the search space, supporting initial broad exploration. (Kept at 0.15)\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.15\n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    # The best solution found so far\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine perturbation standard deviation, which decreases with temperature.\n        # It scales based on the current temperature's ratio to the initial temperature.\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise.\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within search bounds.\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion:\n        # Always accept if the neighbor is better (lower function value).\n        # If the neighbor is worse, accept it with a probability that decreases\n        # as the temperature cools or as the difference in value increases.\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Only calculate acceptance probability if temperature is significantly above zero\n        elif current_temp > 1e-10: \n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution if the current solution is better than the best found so far.\n        # This ensures that even if current_value temporarily increases (to escape a local minimum),\n        # the overall best found is still tracked.\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration, reducing acceptance probability of worse solutions.\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value", "llm_summary": {"label": "#18", "summary_markdown": "The program implements Simulated Annealing with a faster cooling schedule to improve convergence to a precise minimum within 1000 iterations.\n\n- Reduced the cooling rate from `0.997` to `0.99`, enabling faster temperature decay and finer final convergence.\n- Maintained all other core Simulated Annealing mechanics (Gaussian perturbations, acceptance probability, best solution tracking).\n- Preserved the same initial temperature (`50.0`), perturbation scale factor, and boundary-clipping logic.", "diff_markdown": "The only meaningful change is a tuning of the cooling rate from `0.997` to `0.99` to accelerate convergence.\n\n- Cooling rate decreased (further from 1.0), reducing the number of iterations needed to reach low temperatures and sharpening final exploitation.\n- This adjustment aims to improve final solution precision by reaching lower effective temperatures earlier in the run.\n- All other algorithmic components (initialization, perturbation, acceptance logic, best-track update) remain identical.", "generated_at": 1779138015.885192}}, {"id": "1bbe4504-cb45-4708-9b95-7fa8b3fd1451", "parent_id": "e1d44b0d-cad6-49be-866c-9e734b8b9f20", "children_ids": ["f886a72b-0a26-49ec-9563-afe794fe6745", "04fcf6a0-7e07-406b-937f-0e7e1bb21090", "27a2dd92-56ea-4d75-8810-8ccb97c1c859"], "depth": 2, "iteration_found": 16, "visits": 5, "language": "python", "timestamp": 1779063163.1104891, "metrics": {"runs_successfully": 1.0, "value_score": 0.971002330985772, "distance_score": 0.8151148879806521, "combined_score": 1.2721062952972135}, "combined_score": 1.2721062952972135, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9502441741942592, "distance_score": 0.8459390240309707, "combined_score": 1.271930959780521}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing.\n    Adjusted parameters for improved global minimum search and local minima escape.\n    \"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # Simulated Annealing parameters:\n    # Initial temperature: Increased for broader initial exploration.\n    initial_temp = 50.0  \n    # Cooling rate: Decreased (closer to 1) for slower cooling, allowing more time\n    # to escape local minima and explore at higher temperatures.\n    cooling_rate = 0.997 \n    # Initial scale for perturbing solutions: Increased for larger initial jumps\n    # across the search space.\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.15\n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    # The best solution found so far\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine perturbation standard deviation, which decreases with temperature.\n        # It scales based on the current temperature's ratio to the initial temperature.\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise.\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within search bounds.\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion:\n        # Always accept if the neighbor is better (lower function value).\n        # If the neighbor is worse, accept it with a probability that decreases\n        # as the temperature cools or as the difference in value increases.\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Only calculate acceptance probability if temperature is significantly above zero\n        elif current_temp > 1e-10: \n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution if the current solution is better than the best found so far.\n        # This ensures that even if current_value temporarily increases (to escape a local minimum),\n        # the overall best found is still tracked.\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration, reducing acceptance probability of worse solutions.\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value\n\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#16", "summary_markdown": "The program implements a tuned Simulated Annealing algorithm with adjusted hyperparameters to enhance global minimum search and escape local minima.\n\n- Increased initial temperature from `10.0` to `50.0` for broader initial exploration.\n- Slowed the cooling rate from `0.99` to `0.997` to allow more time for escaping local minima at higher temperatures.\n- Expanded the initial perturbation scale factor from `15%` of the domain width (0.1×range) to `15%` (0.15×range), enabling larger initial jumps.", "diff_markdown": "The solution refines Simulated Annealing hyperparameters to improve convergence behavior and global optimization performance.\n\n- `initial_temp`: raised from 10.0 → 50.0 to increase exploration early in the search.\n- `cooling_rate`: increased from 0.99 → 0.997 (i.e., slower decay) to prolong high-temperature phases and aid escape from local minima.\n- `perturbation_scale_factor`: scaled from 0.1×range → 0.15×range to generate larger initial perturbations for broader search space coverage.", "generated_at": 1779138016.785708}}, {"id": "1c6bca5d-4011-462d-97b1-8354a0cce527", "parent_id": null, "children_ids": ["498325f0-c9ac-40c9-baa8-16b3de1ee3fc", "321b6513-1e6d-408c-8551-303bf4739e59", "7b13b159-9ec7-4c99-bc10-821ed34090be", "57381a39-b6dd-4a88-a11e-9d4070d146e1", "e1d44b0d-cad6-49be-866c-9e734b8b9f20"], "depth": 0, "iteration_found": 0, "visits": 21, "language": "python", "timestamp": 1779062602.2401762, "metrics": {"runs_successfully": 1.0, "value_score": 0.9417587299889709, "distance_score": 0.7565915427363771, "combined_score": 1.2147685971231066}, "combined_score": 1.2147685971231066, "changes": null, "parent_metrics": {}, "code": "# EVOLVE-BLOCK-START\n\"\"\"Function minimization example for OpenEvolve.\"\"\"\n\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using random sampling.\"\"\"\n    # Initialize with a random point\n    best_x = np.random.uniform(bounds[0], bounds[1])\n    best_y = np.random.uniform(bounds[0], bounds[1])\n    best_value = evaluate_function(best_x, best_y)\n\n    for _ in range(iterations):\n        # Simple random search\n        x = np.random.uniform(bounds[0], bounds[1])\n        y = np.random.uniform(bounds[0], bounds[1])\n        value = evaluate_function(x, y)\n\n        if value < best_value:\n            best_value = value\n            best_x, best_y = x, y\n\n    return best_x, best_y, best_value\n\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")\n", "llm_summary": {"label": "#0", "summary_markdown": "This program performs random search optimization to find the global minimum of a multi-dimensional objective function defined as `sin(x)*cos(y) + sin(x*y) + (x² + y²)/20`.\n\n- It initializes a candidate solution randomly within specified bounds and iteratively samples new random points.\n- For each iteration, it evaluates the objective function and updates the best-known solution if a lower value is found.\n- The algorithm returns the coordinates and function value of the best-found minimum after a fixed number of iterations.", "diff_markdown": "This is the root program; there is no parent.", "generated_at": 1779138014.488597}}, {"id": "27a2dd92-56ea-4d75-8810-8ccb97c1c859", "parent_id": "1bbe4504-cb45-4708-9b95-7fa8b3fd1451", "children_ids": ["57a598eb-81c1-40e3-9d93-468d0196ea86"], "depth": 3, "iteration_found": 19, "visits": 2, "language": "python", "timestamp": 1779063305.2318459, "metrics": {"runs_successfully": 1.0, "value_score": 0.9755770086680963, "distance_score": 0.8530197640048902, "combined_score": 1.2971757551239393}, "combined_score": 1.2971757551239393, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.971002330985772, "distance_score": 0.8151148879806521, "combined_score": 1.2721062952972135}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    lb, ub = bounds # Lower and upper bounds\n    \n    # Adjusted SA parameters for balanced exploration/exploitation\n    T = 40.0; alpha = 0.995; ps = (ub - lb) * 0.12 # Initial temp, cooling rate, perturbation scale\n    T0 = T # Store initial temperature for perturbation scaling\n    \n    # Initialize current and best solution randomly\n    cx, cy = np.random.uniform(lb, ub, 2)\n    cv = evaluate_function(cx, cy)\n    bx, by, bv = cx, cy, cv # Best solution found so far\n\n    for _ in range(iterations):\n        # Perturbation std dev decreases with temperature\n        psd = ps * (T / T0) \n        \n        # Generate neighbor and clip to bounds\n        nx, ny = cx + np.random.normal(0, psd, 2)\n        nx, ny = np.clip(nx, lb, ub), np.clip(ny, lb, ub)\n        \n        nv = evaluate_function(nx, ny)\n        \n        # Simulated Annealing acceptance criteria\n        if nv < cv or (T > 1e-10 and np.random.rand() < np.exp((cv - nv) / T)):\n            cx, cy, cv = nx, ny, nv\n        \n        # Update global best solution\n        if cv < bv:\n            bv, bx, by = cv, cx, cy\n        \n        T *= alpha # Cool temperature\n        \n    return bx, by, bv\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#19", "summary_markdown": "Solution #19 implements a tuned Simulated Annealing (SA) algorithm with adjusted hyperparameters to balance exploration and exploitation, using temperature-dependent perturbation scaling and standard SA acceptance criteria.\n\n- Uses reduced initial temperature (40.0 vs. 50.0), faster cooling rate (0.995 vs. 0.997), and smaller initial perturbation scale (12% vs. 15% of search range).\n- Simplifies acceptance logic by combining the better-neighbor and probabilistic acceptance into a single conditional with short-circuit evaluation.\n- Includes explicit storage of the initial temperature (`T0`) solely for perturbation scaling, avoiding redundant computation.", "diff_markdown": "The updated version modifies key SA hyperparameters and refactors the acceptance logic for conciseness, resulting in a faster-cooling, more aggressive local search.\n\n- Initial temperature lowered from 50.0 to 40.0, cooling rate increased from 0.997 to 0.995 (faster decay), and perturbation scale reduced from `(ub - lb) * 0.15` to `(ub - lb) * 0.12`.\n- Acceptance condition rewritten as `nv < cv or (T > 1e-10 and np.random.rand() < np.exp((cv - nv) / T))`, dropping the separate `elif` branch and explicit `acceptance_prob` variable.\n- Internal variable names (`cx`, `cv`, `T`, etc.) simplified compared to parent’s more descriptive (`current_x`, `current_value`, `current_temp`, etc.), but without functional change.", "generated_at": 1779138017.950092}}, {"id": "321b6513-1e6d-408c-8551-303bf4739e59", "parent_id": "1c6bca5d-4011-462d-97b1-8354a0cce527", "children_ids": [], "depth": 1, "iteration_found": 2, "visits": 1, "language": "python", "timestamp": 1779062667.560362, "metrics": {"runs_successfully": 1.0, "value_score": 0.5819643758200943, "distance_score": 0.1471627499301935, "combined_score": 0.3264349803713072}, "combined_score": 0.3264349803713072, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9417587299889709, "distance_score": 0.7565915427363771, "combined_score": 1.2147685971231066}, "code": "import numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"\n    Search for the global minimum using Simulated Annealing,\n    an algorithm capable of escaping local minima.\n    \"\"\"\n    lower_bound, upper_bound = bounds\n\n    # Simulated Annealing parameters\n    initial_temperature = 10.0\n    cooling_rate = 0.99  # Factor by which temperature decreases each iteration\n    # Initial step size for generating neighbor solutions, relative to the search space range\n    initial_perturbation_scale = (upper_bound - lower_bound) * 0.1\n\n    current_temperature = initial_temperature\n\n    # Initialize current solution randomly within bounds\n    current_x = np.random.uniform(lower_bound, upper_bound)\n    current_y = np.random.uniform(lower_bound, upper_bound)\n    current_value = evaluate_function(current_x, current_y)\n\n    # Initialize the best solution found so far\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine the standard deviation for generating a neighbor solution.\n        # It scales with the current temperature, allowing larger steps at higher temperatures.\n        perturbation_std_dev = initial_perturbation_scale * (current_temperature / initial_temperature)\n\n        # Generate a neighbor solution by adding Gaussian noise to the current solution\n        neighbor_x = current_x + np.random.normal(0, perturbation_std_dev)\n        neighbor_y = current_y + np.random.normal(0, perturbation_std_dev)\n\n        # Clip neighbor coordinates to ensure they stay within the defined bounds\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n\n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n\n        # Simulated Annealing acceptance criterion:\n        # Accept the neighbor if it's better (lower value)\n        # OR accept a worse neighbor with a probability that decreases with temperature.\n        # This allows the algorithm to escape local minima.\n        if neighbor_value < current_value or \\\n           np.random.rand() < np.exp(-(neighbor_value - current_value) / current_temperature):\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n\n            # Update the global best solution if the current solution is better\n            if current_value < best_value:\n                best_value = current_value\n                best_x, best_y = current_x, current_y\n\n        # Cool down the temperature for the next iteration\n        current_temperature *= cooling_rate\n\n    return best_x, best_y, best_value\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#2", "summary_markdown": "The program implements Simulated Annealing to find the global minimum of a multimodal function, using temperature-controlled probabilistic acceptance of worse solutions to escape local minima.\n\n- It uses a decaying temperature schedule and Gaussian perturbations to generate neighbor solutions.\n- Worse solutions are accepted with probability `exp(-Δvalue / temperature)` to avoid premature convergence.\n- Neighbor coordinates are clipped to stay within the specified bounds after perturbation.", "diff_markdown": "The solution replaces the parent’s naive random search with the more sophisticated Simulated Annealing metaheuristic.\n\n- Replaced uniform random sampling with temperature-scaled Gaussian perturbations around the current solution.\n- Introduced an acceptance criterion that allows probabilistic acceptance of worse solutions, enabling escape from local minima.\n- Added temperature decay (`cooling_rate = 0.99`) and dynamic step-size scaling based on current temperature.", "generated_at": 1779138015.3378088}}, {"id": "361c6151-bcb5-4773-a544-f19f91e06fa1", "parent_id": "e1d44b0d-cad6-49be-866c-9e734b8b9f20", "children_ids": ["ac89efa8-f766-45a8-a996-550af1b18300"], "depth": 2, "iteration_found": 7, "visits": 2, "language": "python", "timestamp": 1779062813.820073, "metrics": {"runs_successfully": 1.0, "value_score": 0.9085481495590172, "distance_score": 0.7658918072118902, "combined_score": 1.192079857668233}, "combined_score": 1.192079857668233, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9502441741942592, "distance_score": 0.8459390240309707, "combined_score": 1.271930959780521}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing.\"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # Simulated Annealing parameters:\n    # Initial temperature (increased for broader initial exploration)\n    initial_temp = 50.0  \n    # Cooling rate (decreased for slower cooling, allowing more escape from local minima)\n    cooling_rate = 0.997 \n    # Initial scale for perturbing solutions (slightly increased for larger initial jumps)\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.15\n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    # The best solution found so far\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine perturbation std dev, which decreases with temperature.\n        # It scales based on the current temperature's ratio to the initial temperature.\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise.\n        # This allows for exploration around the current solution.\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within the defined search bounds.\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion:\n        # Always accept if the neighbor is better (lower function value).\n        # If the neighbor is worse, accept it with a probability that decreases\n        # as the temperature cools or as the difference in value increases.\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Only calculate acceptance probability if temperature is significantly above zero\n        elif current_temp > 1e-10: \n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution if the current solution is better than the best found so far.\n        # This ensures that even if current_value temporarily increases (to escape a local minimum),\n        # the overall best found is still tracked.\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration, reducing acceptance probability of worse solutions.\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value\n\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#7", "summary_markdown": "The program implements a modified Simulated Annealing algorithm with enhanced exploration and finer temperature control to locate the global minimum of a multidimensional function.\n\n- Initial temperature increased from 10.0 to 50.0 for broader initial exploration.\n- Cooling rate decreased from 0.99 to 0.997, enabling slower cooling and more thorough escaping from local minima.\n- Perturbation scale factor increased from 10% to 15% of the search range, allowing larger initial jumps for more effective exploration.", "diff_markdown": "The solution refines Simulated Annealing hyperparameters to improve convergence behavior on multimodal landscapes, specifically increasing exploration early in the search and slowing cooling to avoid premature convergence.\n\n- Initial temperature raised from 10.0 to 50.0 for more aggressive early-stage exploration.\n- Cooling rate reduced from 0.99 to 0.997, causing temperature to decay more gradually and extend the acceptance window for worse solutions.\n- Perturbation scale factor increased from 10% to 15% of the domain width, generating larger candidate jumps in early iterations.", "generated_at": 1779138016.270781}}, {"id": "498325f0-c9ac-40c9-baa8-16b3de1ee3fc", "parent_id": "1c6bca5d-4011-462d-97b1-8354a0cce527", "children_ids": [], "depth": 1, "iteration_found": 1, "visits": 1, "language": "python", "timestamp": 1779062648.8260741, "metrics": {"runs_successfully": 1.0, "value_score": 0.8301294546402241, "distance_score": 0.19750089396775172, "combined_score": 0.46166242429698817}, "combined_score": 0.46166242429698817, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9417587299889709, "distance_score": 0.7565915427363771, "combined_score": 1.2147685971231066}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing.\"\"\"\n    l,u=bounds # Lower and upper bounds\n    t=10.0; cr=0.99; ss=(u-l)*0.1 # Initial temp, cooling rate, step size\n    \n    # Initialize current and best solution randomly\n    cx,cy=np.random.uniform(l,u,2) # current x, y\n    cv=evaluate_function(cx,cy) # current value\n    bx,by,bv=cx,cy,cv # best x, y, value\n\n    for _ in range(iterations):\n        # Determine perturbation standard deviation based on current temperature\n        psd=ss*(t/10.0) # 10.0 is the initial temperature\n        \n        # Generate a neighbor solution by adding Gaussian noise\n        nx,ny=cx+np.random.normal(0,psd,2) # neighbor x, y\n        \n        # Clip neighbor coordinates to stay within bounds\n        nx=np.clip(nx,l,u); ny=np.clip(ny,l,u)\n        \n        nv=evaluate_function(nx,ny) # neighbor value\n        \n        # Simulated Annealing acceptance criterion\n        # Accept if neighbor is better OR accept worse with decreasing probability\n        if nv<cv or np.random.rand()<np.exp(-(nv-cv)/t):\n            cx,cy,cv=nx,ny,nv # Move to neighbor\n            if cv<bv: # Update global best if current is better\n                bv,bx,by=cv,cx,cy\n        \n        t*=cr # Cool down the temperature\n        \n    return bx,by,bv\n\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#1", "summary_markdown": "The program implements Simulated Annealing to find the global minimum of a function by iteratively perturbing the current solution with Gaussian noise and accepting worse solutions probabilistically based on a decaying temperature.\n\n- It uses a temperature-dependent perturbation step size (`psd = ss * (t/10.0)`) to guide exploration vs. exploitation.\n- Neighbor solutions are generated via Gaussian noise and clipped to stay within the search bounds.\n- Acceptance of worse solutions follows the Metropolis criterion: `exp(-(nv-cv)/t)`, with cooling rate `cr=0.99`.", "diff_markdown": "The parent used naive random sampling (uniform random restarts), while the current version implements Simulated Annealing with adaptive perturbation and probabilistic acceptance of worse solutions.\n\n- Replaced uniform random sampling with Gaussian perturbations scaled by current temperature.\n- Introduced cooling schedule (`t *= cr`) and acceptance criterion to escape local minima.\n- Maintains both a current solution and a global best, updating the best only when a strictly better solution is found—whereas the parent updated best only on strict improvement during uniform sampling.", "generated_at": 1779138016.271856}}, {"id": "57381a39-b6dd-4a88-a11e-9d4070d146e1", "parent_id": "1c6bca5d-4011-462d-97b1-8354a0cce527", "children_ids": [], "depth": 1, "iteration_found": 4, "visits": 1, "language": "python", "timestamp": 1779062710.7674701, "metrics": {"runs_successfully": 1.0, "value_score": 0.7311189110323536, "distance_score": 0.22553034317669443, "combined_score": 0.44325299092842957, "reliability_score": 1.0}, "combined_score": 0.44325299092842957, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9417587299889709, "distance_score": 0.7565915427363771, "combined_score": 1.2147685971231066}, "code": "# EVOLVE-BLOCK-START\n\"\"\"Function minimization example for OpenEvolve.\"\"\"\n\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"\n    Search for the global minimum using Simulated Annealing.\n    This algorithm is designed to escape local minima and find the global optimum\n    in complex, multi-modal landscapes by allowing temporary moves to worse solutions\n    with a probability that decreases over time (temperature cooling).\n    \"\"\"\n    lower_bound, upper_bound = bounds\n\n    # Simulated Annealing parameters\n    initial_temperature = 10.0  # Starting temperature for exploration\n    cooling_rate = 0.99         # Rate at which temperature decreases each iteration\n    # Initial scale for perturbing solutions, relative to the total search space range.\n    # This determines the initial 'step size' for exploration.\n    initial_perturbation_scale = (upper_bound - lower_bound) * 0.1\n\n    current_temperature = initial_temperature\n\n    # Initialize the current solution randomly within the search bounds\n    current_x = np.random.uniform(lower_bound, upper_bound)\n    current_y = np.random.uniform(lower_bound, upper_bound)\n    current_value = evaluate_function(current_x, current_y)\n\n    # Initialize the best solution found so far with the starting point\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine the standard deviation for generating a neighbor solution.\n        # It scales with the current temperature, allowing larger exploratory steps\n        # at higher temperatures and smaller, more refined steps as the temperature cools.\n        perturbation_std_dev = initial_perturbation_scale * (current_temperature / initial_temperature)\n\n        # Generate a neighbor solution by adding Gaussian noise to the current solution\n        neighbor_x = current_x + np.random.normal(0, perturbation_std_dev)\n        neighbor_y = current_y + np.random.normal(0, perturbation_std_dev)\n\n        # Clip neighbor coordinates to ensure they stay within the defined search bounds\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n\n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n\n        # Simulated Annealing acceptance criterion:\n        # 1. Always accept the neighbor if it is better (lower function value).\n        # 2. If the neighbor is worse, accept it with a probability that decreases\n        #    as the temperature cools or as the difference in value increases.\n        # This probabilistic acceptance of worse solutions allows the algorithm\n        # to \"jump out\" of local minima.\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        elif current_temperature > 0: # Only calculate probability if temperature is above zero\n            acceptance_probability = np.exp(-(neighbor_value - current_value) / current_temperature)\n            if np.random.rand() < acceptance_probability:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n\n        # Update the overall best solution found during the search if the current solution is better\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n\n        # Cool down the temperature for the next iteration, reducing exploration and favoring exploitation\n        current_temperature *= cooling_rate\n\n    return best_x, best_y, best_value\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#4", "summary_markdown": "This program implements simulated annealing to minimize a multi-modal function by iteratively exploring the search space with temperature-controlled probabilistic acceptance of worse solutions.\n\n- Uses a temperature schedule (starting at 10.0, cooling at 0.99 per iteration) to guide exploration–exploitation trade-off.\n- Generates neighbor solutions via Gaussian noise scaled by current temperature and clipped to bounds.\n- Accepts worse solutions probabilistically using `exp(-Δvalue / temperature)` to escape local minima.", "diff_markdown": "The algorithm changes from naive random search to simulated annealing, enabling more intelligent exploration and local-minimum avoidance.\n\n- Replaces uniform random sampling with structured neighbor generation using Gaussian perturbations scaled by temperature.\n- Introduces acceptance criteria for worse solutions based on Boltzmann probability, enabling temporary degradation for global search.\n- Adds temperature decay mechanism (multiplicative cooling) and dynamic step-size control relative to the search space range.", "generated_at": 1779138017.9091148}}, {"id": "57a598eb-81c1-40e3-9d93-468d0196ea86", "parent_id": "27a2dd92-56ea-4d75-8810-8ccb97c1c859", "children_ids": [], "depth": 4, "iteration_found": 20, "visits": 1, "language": "python", "timestamp": 1779063331.421294, "metrics": {"runs_successfully": 1.0, "value_score": 0.915099203671146, "distance_score": 0.7502089479803961, "combined_score": 1.1888003419527844}, "combined_score": 1.1888003419527844, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9755770086680963, "distance_score": 0.8530197640048902, "combined_score": 1.2971757551239393}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    lb, ub = bounds \n    \n    # Tuned SA parameters for enhanced global exploration and local minima escape\n    # Higher initial temp (T), slower cooling rate (alpha), larger perturbation (ps)\n    T = 55.0  # Initial temperature for broader initial exploration\n    alpha = 0.9975 # Slower cooling rate for more time to escape local minima\n    ps = (ub - lb) * 0.16 # Perturbation scale for larger initial jumps\n    T0 = T # Store initial temperature for perturbation scaling\n    \n    # Initialize current and best solution randomly\n    cx, cy = np.random.uniform(lb, ub, 2)\n    cv = evaluate_function(cx, cy)\n    bx, by, bv = cx, cy, cv\n\n    for _ in range(iterations):\n        # Perturbation std dev decreases with temperature\n        psd = ps * (T / T0) \n        \n        # Generate neighbor by adding Gaussian noise and clip to bounds\n        nx, ny = cx + np.random.normal(0, psd, 2)\n        nx, ny = np.clip(nx, lb, ub), np.clip(ny, lb, ub)\n        \n        nv = evaluate_function(nx, ny)\n        \n        # Simulated Annealing acceptance criteria\n        if nv < cv or (T > 1e-10 and np.random.rand() < np.exp((cv - nv) / T)):\n            cx, cy, cv = nx, ny, nv\n        \n        # Update the global best solution\n        if cv < bv:\n            bv, bx, by = cv, cx, cy\n        \n        T *= alpha # Cool temperature\n        \n    return bx, by, bv\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#20", "summary_markdown": "The program implements an improved Simulated Annealing algorithm with tuned hyperparameters for better global exploration and escape from local minima.\n\n- Uses a higher initial temperature (`T = 55.0` vs 40.0) for broader initial search\n- Employs a slower cooling rate (`alpha = 0.9975` vs 0.995) to extend exploration time\n- Increases perturbation scale (`ps = (ub - lb) * 0.16` vs `* 0.12`) for larger initial jumps", "diff_markdown": "The solution modifies three key simulated annealing hyperparameters to enhance exploration and local minima escaping behavior.\n\n- Initial temperature increased from `40.0` to `55.0`\n- Cooling rate slowed from `0.995` to `0.9975`\n- Perturbation scale increased from `12%` to `16%` of search space range", "generated_at": 1779138018.9580312}}, {"id": "6e604556-c91d-424d-b79b-090d549ec91a", "parent_id": "e1d44b0d-cad6-49be-866c-9e734b8b9f20", "children_ids": [], "depth": 2, "iteration_found": 14, "visits": 1, "language": "python", "timestamp": 1779063093.266064, "metrics": {"runs_successfully": 0.0, "combined_score": 0.0, "error": "unterminated string literal (detected at line 7) (tmpphw83zwo.py, line 7)"}, "combined_score": 0.0, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9502441741942592, "distance_score": 0.8459390240309707, "combined_score": 1.271930959780521}, "code": "The current program uses a Simulated Annealing (SA) algorithm, which is well-suited for escaping local minima and finding global optima in complex landscapes. Its current fitness score (1.2719) is the highest among the provided programs, indicating that its parameters and approach are effective for the target function.\n\nThe main challenge, as highlighted in the \"Focus areas\", is the code length exceeding 500 characters. My goal is to maintain or improve the reliability of the SA algorithm while drastically reducing its character count.\n\n**Strategy for Improvement:**\n\n1.  **Preserve Algorithm Logic and Parameters:** The current SA implementation's parameters (`initial_temp = 10.0`, `cooling_rate = 0.99`, `perturbation_scale_factor = (upper_bound - lower_bound) * 0.1`) are performing well. Deviating from these might decrease the fitness score. The core SA mechanism for accepting worse solutions (to escape local minima) must be retained.\n\n2.  **Aggressive Code Shortening:** This is the primary focus to meet the `code length exceeds 500 characters` constraint.\n    *   **Alias NumPy functions:** Import `random`, `exp`, and `clip` with short aliases (`R`, `E`, `C`) to save characters on every call.\n    *   **Shorten variable names:** Use single-letter or very short variable names (e.g., `l` for `lower_bound`, `u` for `upper_bound`, `t` for `current_temp`, `x, y, v` for `current_x, current_y, current_value`).\n    *   **Condense multiple statements:** Combine initial parameter assignments and variable declarations onto single lines using semicolons where appropriate and Python allows.\n    *   **Remove redundant checks/whitespace:** The `current_temp > 1e-10` check can be omitted in the acceptance condition, as the cooling rate ensures `t` always remains positive, and `np.exp` handles very small positive denominators by returning values close to zero. Remove unnecessary blank lines and minimize indentation characters.\n    *   **Simplify mathematical expressions:** Rewrite `- (neighbor_value - current_value)` as `(current_value - neighbor_value)`.\n    *   **Shorten float literals:** Use `10.` instead of `10.0`, `.99` instead of `0.99`.\n\nBy applying these optimizations, the code becomes significantly more compact while retaining the robust SA logic, aiming for a lower character count without sacrificing performance.\n\n```python\n# EVOLVE-BLOCK-START\nfrom numpy import random as R, exp as E, clip as C # Aliases for brevity\n\ndef search_algorithm(it=1000, bds=(-5, 5)): # Shortened parameter names\n    l, u = bds; t0, cr, ps, t = 10., .99, (u - l) * .1, 10. # Condensed SA params & init\n    ", "llm_summary": {"label": "#14", "summary_markdown": "The program implements a highly condensed Simulated Annealing (SA) optimizer using shortened aliases, variables, and expression simplifications to reduce code size while preserving the core algorithmic behavior and performance.\n\n- Uses NumPy aliases (`R`, `E`, `C`) and single-letter variable names (`l`, `u`, `t`, `t0`, `cr`, `ps`) to minimize character count.\n- Condenses initialization and parameter definitions into a single line using semicolons and simplified float literals (e.g., `10.`, `.99`).\n- Omits the `current_temp > 1e-10` check and simplifies the acceptance probability expression from `-(neighbor_value - current_value)` to `(current_value - neighbor_value)`.", "diff_markdown": "The solution drastically shortens the parent code via aggressive compression while maintaining the same SA logic and effective parameters.\n\n- Replaces explicit NumPy imports and verbose function/variable names with concise aliases and single-letter identifiers.\n- Removes the `best_x`, `best_y`, `best_value` tracking logic and instead relies on implicit updating of `current_*` state without separate best tracking.\n- Removes clipping for neighbor coordinates (no `C(...)` wrapping) and eliminates the temperature threshold check in acceptance logic, assuming numerical stability.", "generated_at": 1779138020.583922}}, {"id": "7b13b159-9ec7-4c99-bc10-821ed34090be", "parent_id": "1c6bca5d-4011-462d-97b1-8354a0cce527", "children_ids": [], "depth": 1, "iteration_found": 3, "visits": 1, "language": "python", "timestamp": 1779062694.786863, "metrics": {"runs_successfully": 1.0, "value_score": 0.7910351887116907, "distance_score": 0.36504227071579753, "combined_score": 0.7050302755705846, "reliability_score": 1.0}, "combined_score": 0.7050302755705846, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9417587299889709, "distance_score": 0.7565915427363771, "combined_score": 1.2147685971231066}, "code": "# EVOLVE-BLOCK-START\n\"\"\"Function minimization example for OpenEvolve.\"\"\"\n\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"\n    Search for the global minimum using Simulated Annealing,\n    an algorithm capable of escaping local minima and finding the global optimum\n    in complex landscapes.\n    \"\"\"\n    lower_bound, upper_bound = bounds\n\n    # Simulated Annealing parameters\n    initial_temperature = 10.0  # Starting temperature for exploration\n    cooling_rate = 0.99         # Factor by which temperature decreases each iteration\n    # Initial scale for perturbing solutions, relative to the search space range\n    initial_perturbation_scale = (upper_bound - lower_bound) * 0.1\n\n    current_temperature = initial_temperature\n\n    # Initialize current solution randomly within the search bounds\n    current_x = np.random.uniform(lower_bound, upper_bound)\n    current_y = np.random.uniform(lower_bound, upper_bound)\n    current_value = evaluate_function(current_x, current_y)\n\n    # Initialize the best solution found so far with the starting point\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine the standard deviation for generating a neighbor solution.\n        # It scales with the current temperature, allowing larger steps at higher temperatures\n        # and smaller, more refined steps as the temperature cools.\n        perturbation_std_dev = initial_perturbation_scale * (current_temperature / initial_temperature)\n\n        # Generate a neighbor solution by adding Gaussian noise to the current solution\n        neighbor_x = current_x + np.random.normal(0, perturbation_std_dev)\n        neighbor_y = current_y + np.random.normal(0, perturbation_std_dev)\n\n        # Clip neighbor coordinates to ensure they stay within the defined search bounds\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n\n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n\n        # Simulated Annealing acceptance criterion:\n        # 1. Always accept the neighbor if it is better (lower function value).\n        # 2. If the neighbor is worse, accept it with a probability that decreases\n        #    as the temperature cools or as the difference in value increases.\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Only calculate acceptance probability if temperature is above zero to prevent division by zero\n        elif current_temperature > 0:\n            acceptance_probability = np.exp(-(neighbor_value - current_value) / current_temperature)\n            if np.random.rand() < acceptance_probability:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n\n        # Update the global best solution if the current solution is better than the best found so far\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n\n        # Cool down the temperature for the next iteration\n        current_temperature *= cooling_rate\n\n    return best_x, best_y, best_value\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#3", "summary_markdown": "The program implements Simulated Annealing to find the global minimum of a complex function, using temperature-based probabilistic acceptance of worse solutions to escape local minima.\n\n- Uses an iterative temperature-decay schedule to control search exploration vs. exploitation.\n- Generates neighbor solutions via Gaussian noise, scaled by current temperature, and clips them to bounds.\n- Accepts worse solutions probabilistically based on the Metropolis criterion to avoid premature convergence.", "diff_markdown": "The solution replaces the parent’s simple random search with a more sophisticated Simulated Annealing metaheuristic.\n\n- Replaces uniform random sampling with guided neighbor generation using Gaussian noise scaled by temperature.\n- Introduces temperature cooling schedule (`initial_temperature = 10.0`, `cooling_rate = 0.99`) to dynamically adjust exploration behavior.\n- Adds probabilistic acceptance of worse solutions using the Metropolis criterion to enhance global optimization capability.", "generated_at": 1779138019.4946718}}, {"id": "7b695f50-3e61-4735-a617-0591b419b6a9", "parent_id": "e1d44b0d-cad6-49be-866c-9e734b8b9f20", "children_ids": [], "depth": 2, "iteration_found": 8, "visits": 1, "language": "python", "timestamp": 1779062862.093614, "metrics": {"runs_successfully": 1.0, "value_score": 0.8499318662636505, "distance_score": 0.19814876231974068, "combined_score": 0.47137489974886926}, "combined_score": 0.47137489974886926, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9502441741942592, "distance_score": 0.8459390240309707, "combined_score": 1.271930959780521}, "code": "import numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing.\n    Improved parameters for better global minimum discovery.\n    \"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # Simulated Annealing parameters tuned for better global exploration:\n    # Initial temperature (increased for broader initial exploration)\n    initial_temp = 20.0  \n    # Cooling rate (increased for slower cooling, allowing more escape from local minima over time)\n    cooling_rate = 0.995 \n    # Initial scale for perturbing solutions (kept reasonable based on search space)\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.1\n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    # The best solution found so far\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine perturbation std dev, which decreases with temperature\n        # ensuring larger steps early on and finer search later.\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within search bounds\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion:\n        # Always accept if neighbor is better (lower function value).\n        # If neighbor is worse, accept with a probability that decreases with\n        # increasing value difference and decreasing temperature.\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Only calculate acceptance probability if temperature is significantly above zero\n        elif current_temp > 1e-10: \n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution if the current solution is better\n        # This ensures the best overall value found is always tracked.\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#8", "summary_markdown": "The program implements Simulated Annealing to minimize a 2D function, with tuned hyperparameters to enhance global minimum discovery.\n\n- Increased initial temperature from `10.0` to `20.0` for broader initial exploration of the search space.\n- Adjusted cooling rate from `0.99` to `0.995`, slowing the temperature decay to allow more iterations at higher temperatures and improve escape from local minima.\n- Retained all other structural logic, including Gaussian perturbations, boundary clipping, and Metropolis acceptance criterion.", "diff_markdown": "The solution modifies only the Simulated Annealing hyperparameters—specifically initial temperature and cooling rate—to improve global optimization performance.\n\n- Initial temperature raised from `10.0` to `20.0`\n- Cooling rate increased from `0.99` to `0.995`\n- No changes to algorithmic structure, acceptance logic, or evaluation function", "generated_at": 1779138019.774286}}, {"id": "7fff8b7e-dfcc-4a43-9f5a-12483965023b", "parent_id": "e1d44b0d-cad6-49be-866c-9e734b8b9f20", "children_ids": [], "depth": 2, "iteration_found": 6, "visits": 1, "language": "python", "timestamp": 1779062777.796763, "metrics": {"runs_successfully": 1.0, "value_score": 0.47541555465687163, "distance_score": 0.19217224720458126, "combined_score": 0.28969458534076437}, "combined_score": 0.28969458534076437, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9502441741942592, "distance_score": 0.8459390240309707, "combined_score": 1.271930959780521}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    l, u = bounds # Lower and upper bounds\n\n    # Simulated Annealing parameters\n    # Higher initial temperature for broader initial exploration\n    T_init = 25.0\n    # Slightly faster cooling rate for quicker convergence within fixed iterations\n    alpha = 0.98\n    # Initial perturbation scale relative to search space range\n    step_scale = (u - l) * 0.1\n\n    T = T_init # Current temperature\n\n    # Initialize current and best solution randomly within bounds\n    cx, cy = np.random.uniform(l, u, 2)\n    cv = evaluate_function(cx, cy)\n    \n    # Best solution found so far\n    bx, by, bv = cx, cy, cv \n\n    for _ in range(iterations):\n        # Step size (perturbation standard deviation) decreases with temperature\n        step_std = step_scale * (T / T_init)\n\n        # Generate a neighbor solution by adding Gaussian noise\n        nx, ny = cx + np.random.normal(0, step_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within search bounds\n        nx = np.clip(nx, l, u)\n        ny = np.clip(ny, l, u)\n        \n        nv = evaluate_function(nx, ny) # Neighbor value\n        \n        # Simulated Annealing acceptance criterion:\n        # Accept if neighbor is better (lower value)\n        # OR accept worse with a probability that decreases with temperature and value difference.\n        # The T > 1e-10 check prevents division by near-zero temperature and effectively\n        # turns the acceptance into a pure local search (hill-climbing) at very low temperatures.\n        if nv < cv or (T > 1e-10 and np.random.rand() < np.exp(-(nv - cv) / T)):\n            cx, cy, cv = nx, ny, nv # Move to neighbor\n            \n            # Update the global best solution if the new current solution is better\n            if cv < bv: \n                bv, bx, by = cv, cx, cy\n        \n        T *= alpha # Cool down the temperature for the next iteration\n        \n    return bx, by, bv\n\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#6", "summary_markdown": "The program implements a simulated annealing optimization algorithm with tuned hyperparameters to efficiently locate the global minimum of a given function.\n\n- Uses a higher initial temperature (25.0) and slightly faster cooling rate (0.98) for broader initial exploration and quicker convergence.\n- Implements a more compact acceptance criterion by combining the \"better solution\" and probabilistic acceptance into a single conditional.\n- Maintains consistent boundary clipping and Gaussian perturbation logic but streamlines variable naming and reduces redundant checks.", "diff_markdown": "The child solution modifies key hyperparameters and condenses the acceptance logic, improving exploration-exploitation balance and code conciseness without changing the core algorithm.\n\n- Initial temperature increased from `10.0` to `25.0` and cooling rate tightened from `0.99` to `0.98`, accelerating convergence.\n- Merged the separate `if`/`elif` acceptance branches into a single `if` with combined conditions, eliminating the `elif` and reducing branching overhead.\n- Variable names are shorter (e.g., `cx`, `nx`, `T`) and comments slightly trimmed, reflecting minor stylistic simplifications.", "generated_at": 1779138020.4838521}}, {"id": "8d05cbea-2801-4851-a193-9f0af39f408c", "parent_id": "e1d44b0d-cad6-49be-866c-9e734b8b9f20", "children_ids": [], "depth": 2, "iteration_found": 9, "visits": 1, "language": "python", "timestamp": 1779062902.190212, "metrics": {"runs_successfully": 1.0, "value_score": 0.897976350650557, "distance_score": 0.201505225494566, "combined_score": 0.4955103204705285}, "combined_score": 0.4955103204705285, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9502441741942592, "distance_score": 0.8459390240309707, "combined_score": 1.271930959780521}, "code": "import numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing.\"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # Simulated Annealing parameters, tuned for this complex function\n    initial_temp = 15.0  # Increased initial temp for broader exploration\n    cooling_rate = 0.992 # Slightly slower cooling for prolonged escape ability\n    # Initial scale for perturbations, allowing larger jumps\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.12 \n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    # Track the best solution found globally\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Perturbation standard deviation decreases with temperature\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within search bounds\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion: accept better or worse with decreasing probability\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Only calculate acceptance probability if temperature is significantly above zero\n        elif current_temp > 1e-10: \n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution found so far\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#9", "summary_markdown": "The program implements a tuned Simulated Annealing algorithm to find the global minimum of a complex multimodal function, with adjusted parameters for improved exploration and convergence stability.\n\n- Increased initial temperature from 10.0 to 15.0 for broader initial search space exploration  \n- Slowed cooling rate from 0.99 to 0.992 to prolong high-temperature behavior and escape local minima more effectively  \n- Expanded initial perturbation scale factor from 10% to 12% of the search range to enable larger initial jumps", "diff_markdown": "The solution fine-tunes three key simulated annealing hyperparameters—initial temperature, cooling rate, and perturbation scale—to enhance global search capability and convergence behavior.\n\n- Higher `initial_temp` (15.0 vs 10.0) broadens initial random exploration  \n- Lower `cooling_rate` (0.992 vs 0.99) extends time at elevated temperatures, improving escape from local minima  \n- Larger `perturbation_scale_factor` (0.12 vs 0.1) increases step size diversity early in the search", "generated_at": 1779138020.867876}}, {"id": "ac89efa8-f766-45a8-a996-550af1b18300", "parent_id": "361c6151-bcb5-4773-a544-f19f91e06fa1", "children_ids": [], "depth": 3, "iteration_found": 13, "visits": 1, "language": "python", "timestamp": 1779063023.5087092, "metrics": {"runs_successfully": 1.0, "value_score": 0.8712213282304333, "distance_score": 0.19887984623322014, "combined_score": 0.4818277883452384}, "combined_score": 0.4818277883452384, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9085481495590172, "distance_score": 0.7658918072118902, "combined_score": 1.192079857668233}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"\n    Search for the global minimum using Simulated Annealing,\n    tuned for robust exploration and effective convergence.\n    \"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # Simulated Annealing parameters:\n    # Initial temperature for broad exploration. A moderate value balances\n    # initial randomness with the need for eventual convergence.\n    initial_temp = 15.0  \n    # Cooling rate. A value around 0.99 ensures temperature drops sufficiently\n    # over 1000 iterations for refining the solution.\n    cooling_rate = 0.99  \n    # Initial scale for perturbing solutions, defining the initial step size range.\n    # It allows for sufficiently large jumps to escape local minima.\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.1\n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    # The best solution found so far\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine perturbation standard deviation. It decreases with temperature,\n        # allowing larger steps at high temps and finer adjustments as temp cools.\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within search bounds\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion:\n        # Accept if neighbor is better OR accept worse with decreasing probability.\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Calculate acceptance probability only if temperature is meaningfully above zero\n        elif current_temp > 1e-10: \n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution found so far\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value\n\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#13", "summary_markdown": "The program implements a Simulated Annealing optimization algorithm with tuned hyperparameters to find the global minimum of a multidimensional test function.\n\n- It uses an initial temperature of 15.0, cooling rate of 0.99, and a perturbation scale factor of 10% of the search range.\n- Neighbor solutions are generated via Gaussian noise scaled by the current temperature ratio, and solutions are clipped to respect bounds.\n- Acceptance of worse solutions follows the standard Metropolis criterion, but with a slightly stricter temperature threshold (1e-10 instead of implicit zero).", "diff_markdown": "The solution modifies three key Simulated Annealing hyperparameters and tightens the temperature threshold for acceptance checks.\n\n- Initial temperature reduced from `50.0` to `15.0`, limiting initial exploration breadth.\n- Cooling rate increased from `0.997` to `0.99`, accelerating temperature decay and thus accelerating convergence (fewer late-stage exploration opportunities).\n- Perturbation scale factor reduced from `(upper_bound - lower_bound) * 0.15` to `(upper_bound - lower_bound) * 0.1`, shrinking initial step size.\n- Temperature threshold for acceptance probability calculation remains identical (`1e-10`), but now explicitly documented and applied in both versions — no meaningful difference here.", "generated_at": 1779138022.349418}}, {"id": "c020e284-0c85-4450-8348-835cc79487d9", "parent_id": "e1d44b0d-cad6-49be-866c-9e734b8b9f20", "children_ids": [], "depth": 2, "iteration_found": 10, "visits": 1, "language": "python", "timestamp": 1779062929.351825, "metrics": {"runs_successfully": 1.0, "value_score": 0.9056617114302096, "distance_score": 0.20051368473425077, "combined_score": 0.4988820006014608}, "combined_score": 0.4988820006014608, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9502441741942592, "distance_score": 0.8459390240309707, "combined_score": 1.271930959780521}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing with refined parameters.\"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # Simulated Annealing parameters:\n    # Increased initial temperature for broader initial exploration,\n    # allowing more aggressive jumps out of potential local minima early on.\n    initial_temp = 15.0  \n    # Cooling rate (factor by which temp decreases each iteration).\n    # Kept as is, as it provides a good balance for convergence within 1000 iterations.\n    cooling_rate = 0.99  \n    # Slightly increased initial scale for perturbing solutions,\n    # enabling larger step sizes to cover more ground initially.\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.13\n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    # The best solution found so far\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine perturbation std dev, which decreases with temperature.\n        # This allows for larger steps at higher temperatures and finer adjustments as it cools.\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise.\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within the defined search bounds.\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion:\n        # Always accept if the neighbor is better (lower function value).\n        # If the neighbor is worse, accept it with a probability that decreases\n        # as the temperature cools or as the difference in value increases.\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Only calculate acceptance probability if temperature is significantly above zero\n        # to prevent division by zero errors and ensure exploration stops when temp is negligible.\n        elif current_temp > 1e-10: \n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution if the current solution is better than the best found so far.\n        # This ensures that even if current_value temporarily increases (to escape a local minimum),\n        # the overall best found is still tracked.\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration, reducing acceptance probability of worse solutions.\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value\n\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#10", "summary_markdown": "The program implements Simulated Annealing with refined hyperparameters to improve exploration and exploitation during optimization.\n\n- The initial temperature was increased from `10.0` to `15.0` for broader early-stage exploration.\n- The perturbation scale factor was increased from `0.1` to `0.13` of the domain range, enabling larger initial step sizes.\n- The cooling rate and core acceptance logic remain unchanged, but comments were refined to clarify behavior.", "diff_markdown": "The solution refines the Simulated Annealing hyperparameters to enhance search effectiveness without altering the core algorithmic structure.\n\n- Initial temperature increased from `10.0` to `15.0` for more aggressive initial exploration.\n- Perturbation scale factor increased from `0.1 * (upper_bound - lower_bound)` to `0.13 * (upper_bound - lower_bound)`.\n- Temperature threshold for acceptance probability calculation (`current_temp > 1e-10`) and clipping of neighbor solutions were already present in the parent; no behavioral change—only improved documentation.", "generated_at": 1779138021.859803}}, {"id": "cd5a1c05-1e93-4bcd-b7f7-2743e8b87177", "parent_id": "e1d44b0d-cad6-49be-866c-9e734b8b9f20", "children_ids": [], "depth": 2, "iteration_found": 11, "visits": 1, "language": "python", "timestamp": 1779062963.354728, "metrics": {"runs_successfully": 1.0, "value_score": 0.7451426134811278, "distance_score": 0.20011302797680142, "combined_score": 0.4217046234235178}, "combined_score": 0.4217046234235178, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9502441741942592, "distance_score": 0.8459390240309707, "combined_score": 1.271930959780521}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing with refined parameters.\"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # Tuned Simulated Annealing parameters for robust global search\n    initial_temp = 20.0  # Moderate initial temperature for enhanced exploration\n    cooling_rate = 0.995 # Balanced cooling rate for extended but controlled search\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.125 # Slightly larger initial step size\n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Perturbation std dev scales with temperature for adaptive step size\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within search bounds\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion:\n        # Accept if neighbor is better OR accept worse with decreasing probability\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        elif current_temp > 1e-10: # Ensure temperature is not near zero for probability calculation\n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution found so far\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value\n\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#11", "summary_markdown": "The program implements a refined Simulated Annealing optimization algorithm with tuned hyperparameters for improved global search performance.\n\n- The initial temperature is increased from `10.0` to `20.0` for broader early exploration.\n- The cooling rate is slowed from `0.99` to `0.995`, enabling a longer, more controlled temperature decay.\n- The initial perturbation scale is increased from `10%` to `12.5%` of the search space width for larger early jumps.", "diff_markdown": "The solution refines three core Simulated Annealing hyperparameters—initial temperature, cooling rate, and perturbation scale—to enhance exploration-exploitation balance.\n\n- Initial temperature increased by 100% (10 → 20) to improve global exploration.\n- Cooling rate decreased from `0.99` to `0.995`, extending the high-temperature phase for more thorough sampling.\n- Perturbation scale factor increased from `0.1 × range` to `0.125 × range`, allowing larger candidate jumps early in the search.", "generated_at": 1779138022.576307}}, {"id": "dd7c8353-e9dd-4379-819f-86f30a09d6b1", "parent_id": "e1d44b0d-cad6-49be-866c-9e734b8b9f20", "children_ids": [], "depth": 2, "iteration_found": 12, "visits": 1, "language": "python", "timestamp": 1779062987.2877681, "metrics": {"runs_successfully": 1.0, "value_score": 0.8847510704219148, "distance_score": 0.20000259346885613, "combined_score": 0.48868134371255306}, "combined_score": 0.48868134371255306, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9502441741942592, "distance_score": 0.8459390240309707, "combined_score": 1.271930959780521}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing.\n    Improved parameters for better exploration and local minima escape.\n    \"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # Tuned Simulated Annealing parameters based on higher-performing inspirations:\n    # Initial temperature (increased for broader initial exploration)\n    initial_temp = 50.0  \n    # Cooling rate (decreased for slower cooling, allowing more escape from local minima)\n    cooling_rate = 0.997 \n    # Initial scale for perturbing solutions (increased for larger initial jumps)\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.15\n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    # The best solution found so far\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine perturbation std dev, which decreases with temperature\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within search bounds\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion:\n        # Accept if neighbor is better OR accept worse with decreasing probability\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Only calculate acceptance probability if temperature is significantly above zero\n        elif current_temp > 1e-10: \n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution if the current solution is better\n        # This ensures the best-found value is always tracked, even if the current solution temporarily worsens\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value\n\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#12", "summary_markdown": "The program implements an improved Simulated Annealing search algorithm with tuned parameters for better global optimization.\n\n- The initial temperature is increased from 10.0 to 50.0 to enable broader initial exploration.\n- The cooling rate is reduced from 0.99 to 0.997, enabling slower cooling and more time to escape local minima.\n- The perturbation scale factor is increased from 10% to 15% of the search space range, allowing larger initial jumps.", "diff_markdown": "The solution refines Simulated Annealing hyperparameters to enhance exploration and convergence behavior.\n\n- Initial temperature increased from 10.0 to 50.0 for more extensive early-stage exploration.\n- Cooling rate decreased from 0.99 to 0.997 to prolong the high-temperature phase and improve escape from local minima.\n- Perturbation scale factor increased from `(bounds_range)*0.1` to `(bounds_range)*0.15` for larger initial solution perturbations.", "generated_at": 1779138022.764629}}, {"id": "e1d44b0d-cad6-49be-866c-9e734b8b9f20", "parent_id": "1c6bca5d-4011-462d-97b1-8354a0cce527", "children_ids": ["7fff8b7e-dfcc-4a43-9f5a-12483965023b", "361c6151-bcb5-4773-a544-f19f91e06fa1", "7b695f50-3e61-4735-a617-0591b419b6a9", "8d05cbea-2801-4851-a193-9f0af39f408c", "c020e284-0c85-4450-8348-835cc79487d9", "cd5a1c05-1e93-4bcd-b7f7-2743e8b87177", "dd7c8353-e9dd-4379-819f-86f30a09d6b1", "6e604556-c91d-424d-b79b-090d549ec91a", "03e7b993-d420-4e79-9009-1ba7f9993197", "1bbe4504-cb45-4708-9b95-7fa8b3fd1451"], "depth": 1, "iteration_found": 5, "visits": 16, "language": "python", "timestamp": 1779062743.496364, "metrics": {"runs_successfully": 1.0, "value_score": 0.9502441741942592, "distance_score": 0.8459390240309707, "combined_score": 1.271930959780521}, "combined_score": 1.271930959780521, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.9417587299889709, "distance_score": 0.7565915427363771, "combined_score": 1.2147685971231066}, "code": "# EVOLVE-BLOCK-START\nimport numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing.\"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # Simulated Annealing parameters:\n    # Initial temperature (high for broad exploration)\n    initial_temp = 10.0  \n    # Cooling rate (factor by which temp decreases each iteration)\n    cooling_rate = 0.99  \n    # Initial scale for perturbing solutions (defines initial step size range)\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.1\n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    # The best solution found so far\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine perturbation std dev, which decreases with temperature\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within search bounds\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion:\n        # Accept if neighbor is better OR accept worse with decreasing probability\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Only calculate acceptance probability if temperature is significantly above zero\n        elif current_temp > 1e-10: \n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution if the current solution is better\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value\n\n\n# EVOLVE-BLOCK-END\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#5", "summary_markdown": "The program implements Simulated Annealing to minimize a multimodal function by iteratively perturbing candidate solutions and probabilistically accepting worse moves to escape local minima.\n\n- It uses temperature-dependent Gaussian perturbations with adaptive step size, bounded within the search space via clipping.\n- Acceptance of worse solutions follows the Metropolis criterion with a temperature cooling schedule (0.99 per iteration).\n- Tracks and updates both the current solution and global best solution over the optimization process.", "diff_markdown": "The parent used naive random sampling; the current version replaces it with a structured Simulated Annealing metaheuristic.\n\n- Replaced uniform random restarts with correlated Gaussian neighbor generation scaled by current temperature.\n- Introduced acceptance probability for inferior solutions based on Δenergy and temperature, enabling thermodynamic-like search dynamics.\n- Added cooling schedule and perturbation scaling to gradually shift from exploration to exploitation.", "generated_at": 1779138022.496811}}, {"id": "f886a72b-0a26-49ec-9563-afe794fe6745", "parent_id": "1bbe4504-cb45-4708-9b95-7fa8b3fd1451", "children_ids": [], "depth": 3, "iteration_found": 17, "visits": 1, "language": "python", "timestamp": 1779063198.2121768, "metrics": {"runs_successfully": 1.0, "value_score": 0.8294540756170261, "distance_score": 0.622183010309194, "combined_score": 0.8585274969179771}, "combined_score": 0.8585274969179771, "changes": "Full rewrite", "parent_metrics": {"runs_successfully": 1.0, "value_score": 0.971002330985772, "distance_score": 0.8151148879806521, "combined_score": 1.2721062952972135}, "code": "import numpy as np\n\n\ndef search_algorithm(iterations=1000, bounds=(-5, 5)):\n    \"\"\"Search for the global minimum using Simulated Annealing.\n    Adjusted parameters for improved global minimum search and local minima escape.\n    \"\"\"\n    lower_bound, upper_bound = bounds\n    \n    # Simulated Annealing parameters:\n    # Initial temperature: High for broad initial exploration.\n    initial_temp = 50.0  \n    # Cooling rate: Adjusted to be slightly faster (closer to 1.0, but less than 0.997)\n    # to allow the temperature to drop more significantly over 1000 iterations,\n    # facilitating better convergence to a minimum in later stages.\n    cooling_rate = 0.995 \n    # Initial scale for perturbing solutions: Increased for larger initial jumps\n    # across the search space, enhancing early exploration.\n    perturbation_scale_factor = (upper_bound - lower_bound) * 0.2\n    \n    current_temp = initial_temp\n\n    # Initialize current and best solution randomly within bounds\n    current_x, current_y = np.random.uniform(lower_bound, upper_bound, 2)\n    current_value = evaluate_function(current_x, current_y)\n    \n    # The best solution found so far\n    best_x, best_y, best_value = current_x, current_y, current_value\n\n    for _ in range(iterations):\n        # Determine perturbation standard deviation, which decreases with temperature.\n        # It scales based on the current temperature's ratio to the initial temperature.\n        perturb_std = perturbation_scale_factor * (current_temp / initial_temp)\n        \n        # Generate a neighbor solution by adding Gaussian noise.\n        neighbor_x, neighbor_y = current_x + np.random.normal(0, perturb_std, 2)\n        \n        # Clip neighbor coordinates to ensure they stay within search bounds.\n        neighbor_x = np.clip(neighbor_x, lower_bound, upper_bound)\n        neighbor_y = np.clip(neighbor_y, lower_bound, upper_bound)\n        \n        neighbor_value = evaluate_function(neighbor_x, neighbor_y)\n        \n        # Simulated Annealing acceptance criterion:\n        # Always accept if the neighbor is better (lower function value).\n        # If the neighbor is worse, accept it with a probability that decreases\n        # as the temperature cools or as the difference in value increases.\n        if neighbor_value < current_value:\n            current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        # Only calculate acceptance probability if temperature is significantly above zero\n        elif current_temp > 1e-10: \n            acceptance_prob = np.exp(-(neighbor_value - current_value) / current_temp)\n            if np.random.rand() < acceptance_prob:\n                current_x, current_y, current_value = neighbor_x, neighbor_y, neighbor_value\n        \n        # Update the global best solution if the current solution is better than the best found so far.\n        # This ensures that even if current_value temporarily increases (to escape a local minimum),\n        # the overall best found is still tracked.\n        if current_value < best_value:\n            best_value = current_value\n            best_x, best_y = current_x, current_y\n        \n        # Cool down the temperature for the next iteration, reducing acceptance probability of worse solutions.\n        current_temp *= cooling_rate\n        \n    return best_x, best_y, best_value\n\n\n# This part remains fixed (not evolved)\ndef evaluate_function(x, y):\n    \"\"\"Evaluate the target function at (x, y).\"\"\"\n    return np.sin(x) * np.cos(y) + np.sin(x * y) + (x**2 + y**2) / 20\n\n\ndef run_search():\n    \"\"\"Run the search algorithm and return (x, y, value).\"\"\"\n    x, y, value = search_algorithm()\n    return x, y, value\n\n\nif __name__ == \"__main__\":\n    x, y, value = run_search()\n    print(f\"Found minimum at ({x}, {y}) with value {value}\")", "llm_summary": {"label": "#17", "summary_markdown": "The program implements a simulated annealing algorithm to minimize a 2D objective function, with tuned hyperparameters to enhance global minimum search and escape local minima.\n\n- Increased initial perturbation scale factor from 15% to 20% of the search space width for broader early exploration.\n- Adjusted cooling rate from 0.997 to 0.995 for faster temperature decay, promoting earlier convergence while still allowing some exploration.\n- Added explicit check for `current_temp > 1e-10` before computing acceptance probability to avoid numerical issues at near-zero temperatures.", "diff_markdown": "The main change is a targeted hyperparameter adjustment to accelerate convergence while maintaining robust exploration.\n\n- Cooling rate reduced from 0.997 to 0.995 (faster cooling), as stated in the comment to allow more significant temperature drop over iterations.\n- Perturbation scale factor increased from 15% to 20% of bounds range to enhance initial jump size across search space.\n- Added robustness guard `elif current_temp > 1e-10:` before acceptance probability calculation (though mathematically redundant, it may prevent floating-point edge cases).", "generated_at": 1779138023.640096}}]}</script>
+  <script>
+    const DATA = JSON.parse(document.getElementById('checkpoint-data').textContent);
+    const programs = (DATA.programs || []).map(p => ({ ...p, children: [] }));
+    const byId = new Map(programs.map(p => [p.id, p]));
+    const bestId = DATA.best_program && DATA.best_program.id || (DATA.metadata || {}).best_program_id;
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    function svgEl(tag, attrs) {
+      const el = document.createElementNS(SVG_NS, tag);
+      if (attrs) for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+      return el;
+    }
+    const NODE_RADIUS = 17;
+    const HIT_RADIUS = 28;
+    const LEVEL_GAP = 220;
+    const ROW_GAP = 74;
+    const DRAG_THRESHOLD = 4;
+    const PROGRESS_CHART = {
+      w: 1400,
+      h: 212,
+      pad: { left: 112, right: 22, top: 38, bottom: 44 },
+      axisTitle: { x: 18, y: 18 },
+      scoreBar: { x: 18, w: 12 },
+    };
+    programs.forEach(p => {
+      if (p.parent_id && byId.has(p.parent_id)) byId.get(p.parent_id).children.push(p);
+    });
+    const roots = programs.filter(p => !p.parent_id || !byId.has(p.parent_id));
+    const maxDepth = programs.length ? Math.max(...programs.map(p => Number(p.depth || 0))) : 0;
+    let selected = roots[0] || programs[0];
+    let transform = { x: 40, y: 48, k: 1 };
+    let collapsedIds = new Set();
+
+    let colorScaleAuto = true;
+
+    const svg = document.getElementById('tree');
+    const progressChart = document.getElementById('progressChart');
+    const details = document.getElementById('details');
+    const stats = document.getElementById('stats');
+    const collapseAllButton = document.getElementById('collapseAll');
+    const resetButton = document.getElementById('reset');
+    const codeModal = document.getElementById('codeModal');
+    const codeModalTitle = document.getElementById('codeModalTitle');
+    const codeModalBody = document.getElementById('codeModalBody');
+    const colorMinInput = document.getElementById('colorMinInput');
+    const colorMaxInput = document.getElementById('colorMaxInput');
+    const colorScaleResetBtn = document.getElementById('colorScaleAutoBtn');
+
+    function fmt(value, digits = 6) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return 'n/a';
+      if (typeof value === 'number') {
+        if (digits === 0) return value.toFixed(0);
+        return value.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+      }
+      return String(value);
+    }
+
+    function iterationName(p) {
+      const iteration = Number(p && p.iteration_found);
+      if (Number.isFinite(iteration)) return `#${iteration}`;
+      const id = p && p.id;
+      return id ? id.slice(0, 8) : 'root';
+    }
+
+    function combinedScore(p) {
+      const value = p && p.combined_score;
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : null;
+    }
+
+    function isFailedZeroScore(value) {
+      return value !== null && Math.abs(Number(value)) < 1e-15;
+    }
+
+    function colorForScore(value, minScore, maxScore) {
+      if (value === null || maxScore === minScore) return '#8a928c';
+      const t = Math.max(0, Math.min(1, (value - minScore) / (maxScore - minScore)));
+      const low = [230, 237, 247];
+      const high = [36, 84, 166];
+      const rgb = low.map((v, i) => Math.round(v + (high[i] - v) * t));
+      return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    }
+
+    function byIteration(a, b) {
+      return (a.iteration_found || 0) - (b.iteration_found || 0) || a.id.localeCompare(b.id);
+    }
+
+    function fieldRows(rows) {
+      return rows
+        .map(([k, v]) => {
+          const inner = v && v.__html !== undefined ? v.__html : escapeXml(v);
+          return `<div class="field"><span>${escapeXml(k)}</span><span>${inner}</span></div>`;
+        })
+        .join('');
+    }
+
+    function scoreExtent() {
+      const scores = programs.map(combinedScore).filter(v => v !== null);
+      const positives = scores.filter(v => v > 0);
+      const max = scores.length ? Math.max(...scores) : 0;
+      const minForColor = positives.length ? Math.min(...positives) : max;
+      return { max, minForColor };
+    }
+
+    function syncColorInputs(ext) {
+      if (!colorScaleAuto) return;
+      colorMinInput.value = fmt(ext.minForColor, 10);
+      colorMaxInput.value = fmt(ext.max, 10);
+    }
+
+    function activeColorRange(ext) {
+      if (colorScaleAuto) return { min: ext.minForColor, max: ext.max };
+      let lo = parseFloat(colorMinInput.value);
+      let hi = parseFloat(colorMaxInput.value);
+      if (!Number.isFinite(lo)) lo = ext.minForColor;
+      if (!Number.isFinite(hi)) hi = ext.max;
+      if (lo >= hi) hi = lo + Math.max(1e-12, Math.abs(lo) * 1e-12 + 1e-15);
+      return { min: lo, max: hi };
+    }
+
+    function progressData() {
+      let best = -Infinity;
+      const series = [];
+      const breakthroughs = [];
+      programs
+        .filter(p => Number.isFinite(Number(p.iteration_found)) && combinedScore(p) !== null)
+        .slice()
+        .sort(byIteration)
+        .forEach(p => {
+          const score = combinedScore(p);
+          if (score > best + 1e-12) {
+            best = score;
+            breakthroughs.push({ p, x: Number(p.iteration_found), y: best });
+          }
+          series.push({ p, x: Number(p.iteration_found), y: best });
+        });
+      return { series, breakthroughs };
+    }
+
+    function selectedFamilyIds() {
+      const ids = new Set();
+      for (let q = selected; q; q = q.parent_id ? byId.get(q.parent_id) : null) ids.add(q.id);
+      return ids;
+    }
+
+    function visiblePrograms() {
+      const visible = [];
+      const seen = new Set();
+      function visit(p) {
+        if (!p || seen.has(p.id)) return;
+        seen.add(p.id);
+        visible.push(p);
+        if (collapsedIds.has(p.id)) return;
+        p.children.slice().sort(byIteration).forEach(visit);
+      }
+      roots.slice().sort(byIteration).forEach(visit);
+      return visible;
+    }
+
+    function layout(nodesToLayout) {
+      const levels = new Map();
+      nodesToLayout.forEach(p => {
+        const d = Number(p.depth || 0);
+        if (!levels.has(d)) levels.set(d, []);
+        levels.get(d).push(p);
+      });
+      const width = Math.max(1200, (maxDepth + 1) * (LEVEL_GAP + 15));
+      let maxRows = 0;
+      for (const [d, nodes] of levels) {
+        nodes.sort(byIteration);
+        maxRows = Math.max(maxRows, nodes.length);
+        nodes.forEach((p, i) => {
+          p.x = 90 + d * LEVEL_GAP;
+          p.y = 62 + i * ROW_GAP;
+        });
+      }
+      return { width, height: Math.max(720, 140 + maxRows * ROW_GAP) };
+    }
+
+    function edgePath(parent, child) {
+      const mx = (parent.x + child.x) / 2;
+      return `M ${parent.x} ${parent.y} C ${mx} ${parent.y}, ${mx} ${child.y}, ${child.x} ${child.y}`;
+    }
+
+    function applyTransform() {
+      const viewport = svg.querySelector('#viewport');
+      if (viewport) viewport.setAttribute('transform', `translate(${transform.x} ${transform.y}) scale(${transform.k})`);
+    }
+
+    function treeSvgViewSize() {
+      const vb = svg.viewBox.baseVal;
+      return { w: vb.width || 1200, h: vb.height || 720 };
+    }
+
+    function treeUserPerCssPx() {
+      const r = svg.getBoundingClientRect();
+      const { w, h } = treeSvgViewSize();
+      return 1 / (Math.max(r.width / w, r.height / h) || 1);
+    }
+
+    const FOCUS_ZOOM = 1.45;
+
+    function centerTreeOnProgram(programId) {
+      const p = byId.get(programId);
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
+
+      const { w, h } = treeSvgViewSize();
+      const k = FOCUS_ZOOM;
+      transform.x = w / 2 - p.x * k;
+      transform.y = h / 2 - p.y * k;
+      transform.k = k;
+      applyTransform();
+
+      requestAnimationFrame(() => {
+        const sel = typeof CSS !== 'undefined' && CSS.escape
+          ? `#viewport .node[data-program-id="${CSS.escape(programId)}"]`
+          : null;
+        const nodeEl = sel ? svg.querySelector(sel) : [...svg.querySelectorAll('#viewport .node')].find(
+          el => el.getAttribute('data-program-id') === programId
+        );
+        if (!nodeEl) return;
+        const svgRect = svg.getBoundingClientRect();
+        const nodeRect = nodeEl.getBoundingClientRect();
+        const nx = (nodeRect.left + nodeRect.right) / 2 - svgRect.left;
+        const ny = (nodeRect.top + nodeRect.bottom) / 2 - svgRect.top;
+        const m = treeUserPerCssPx();
+        transform.x += (svgRect.width / 2 - nx) * m;
+        transform.y += (svgRect.height / 2 - ny) * m;
+        applyTransform();
+      });
+    }
+
+    function selectAndFocus(p) {
+      if (!p) return;
+      for (let a = byId.get(p.parent_id); a; a = byId.get(a.parent_id)) {
+        collapsedIds.delete(a.id);
+      }
+      selected = p;
+      if (!visiblePrograms().some(q => q.id === p.id)) collapsedIds.clear();
+      render();
+      if (selected.id === p.id) centerTreeOnProgram(p.id);
+    }
+
+    function renderProgressChart(range) {
+      const { series, breakthroughs } = progressData();
+      const { w: width, h: height, pad, axisTitle, scoreBar } = PROGRESS_CHART;
+      progressChart.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      if (!series.length) {
+        progressChart.innerHTML = `<text class="progress-label" x="${pad.left}" y="${height / 2}">No score data</text>`;
+        return;
+      }
+      const xs = series.map(d => d.x);
+      const ys = series.map(d => d.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const spanX = Math.max(1, maxX - minX);
+      const spanY = Math.max(1e-12, maxY - minY);
+      const xScale = x => pad.left + ((x - minX) / spanX) * (width - pad.left - pad.right);
+      const yScale = y => height - pad.bottom - ((y - minY) / spanY) * (height - pad.top - pad.bottom);
+      progressChart.innerHTML = `
+    <defs>
+      <linearGradient id="scoreGradient" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="#e6edf7"></stop>
+        <stop offset="100%" stop-color="#2454a6"></stop>
+      </linearGradient>
+    </defs>
+    <rect class="scorebar" x="${scoreBar.x}" y="${pad.top}" width="${scoreBar.w}" height="${height - pad.top - pad.bottom}" fill="url(#scoreGradient)"></rect>
+    <line class="progress-grid" x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${height - pad.bottom}"></line>
+    <line class="progress-grid" x1="${pad.left}" y1="${yScale((minY + maxY) / 2)}" x2="${width - pad.right}" y2="${yScale((minY + maxY) / 2)}"></line>
+    <line class="progress-grid" x1="${pad.left}" y1="${pad.top}" x2="${width - pad.right}" y2="${pad.top}"></line>
+    <line class="progress-axis" x1="${pad.left}" y1="${height - pad.bottom}" x2="${width - pad.right}" y2="${height - pad.bottom}"></line>
+    <line class="progress-axis" x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${height - pad.bottom}"></line>
+    <text class="progress-label" x="${axisTitle.x}" y="${axisTitle.y}">maximum combined_score</text>
+    <text class="progress-label" x="${pad.left}" y="${height - 14}">iteration</text>
+    <text class="progress-label" x="${width - pad.right}" y="${height - 14}" text-anchor="end">${fmt(maxX, 0)}</text>
+    <text class="progress-label" x="${pad.left - 12}" y="${yScale(maxY) + 6}" text-anchor="end">${fmt(maxY, 4)}</text>
+    <text class="progress-label" x="${pad.left - 12}" y="${yScale(minY) + 6}" text-anchor="end">${fmt(minY, 4)}</text>
+  `;
+      const addSegment = (d, score) => {
+        const stroke = isFailedZeroScore(score)
+          ? '#cbd5e1'
+          : colorForScore(score, range.min, range.max);
+        progressChart.appendChild(svgEl('path', {
+          class: 'progress-line',
+          d,
+          stroke,
+        }));
+      };
+      series.forEach((d, i) => {
+        const x = xScale(d.x), y = yScale(d.y);
+        if (i === 0) return;
+        const prev = series[i - 1];
+        const px = xScale(prev.x), py = yScale(prev.y);
+        addSegment(`M ${px} ${py} H ${x}`, prev.y);
+        if (prev.y !== d.y) addSegment(`M ${x} ${py} V ${y}`, d.y);
+      });
+      const tipG = svgEl('g', { id: 'progressChartTooltip', visibility: 'hidden' });
+      const tipBg = svgEl('rect', { class: 'progress-tip-bg' });
+      const tipTxt = svgEl('text', { class: 'progress-tip-text', 'text-anchor': 'middle' });
+      tipG.append(tipBg, tipTxt);
+
+      const showProgressTip = (cx, cy, label) => {
+        tipTxt.textContent = label;
+        tipTxt.setAttribute('x', cx);
+        tipTxt.setAttribute('y', cy - 14);
+        tipG.setAttribute('visibility', 'visible');
+        const bb = tipTxt.getBBox();
+        const pad = 6;
+        tipBg.setAttribute('x', bb.x - pad);
+        tipBg.setAttribute('y', bb.y - pad);
+        tipBg.setAttribute('width', bb.width + 2 * pad);
+        tipBg.setAttribute('height', bb.height + 2 * pad);
+        tipBg.setAttribute('rx', '5');
+        tipBg.setAttribute('ry', '5');
+      };
+      const hideProgressTip = () => tipG.setAttribute('visibility', 'hidden');
+
+      const cxs = breakthroughs.map(d => xScale(d.x)).sort((a, b) => a - b);
+      const minGap = cxs.slice(1).reduce(
+        (m, x, i) => Math.min(m, x - cxs[i]),
+        Infinity,
+      );
+      const hitR = Math.max(10, Math.min(28, isFinite(minGap) ? minGap / 2 : 18));
+      breakthroughs.forEach(d => {
+        const cx = xScale(d.x);
+        const cy = yScale(d.y);
+        const name = iterationName(d.p);
+        const scoreStr = fmt(d.y, 6);
+        const label = `${name} · ${scoreStr}`;
+        const failedTip = isFailedZeroScore(d.y);
+        const fill = failedTip ? '#ffffff' : colorForScore(d.y, range.min, range.max);
+        const dotClass = failedTip ? 'progress-dot failed' : 'progress-dot';
+        const dot = svgEl('circle', { class: dotClass, cx, cy, r: 8, fill });
+        dot.innerHTML = `<title>${escapeXml(name)}: ${escapeXml(scoreStr)}</title>`;
+        const hit = svgEl('circle', {
+          class: 'progress-dot-hit', cx, cy, r: hitR, fill: 'transparent',
+        });
+        hit.addEventListener('mouseenter', () => {
+          dot.setAttribute('r', '11');
+          showProgressTip(cx, cy, label);
+        });
+        hit.addEventListener('mouseleave', () => {
+          dot.setAttribute('r', '8');
+          hideProgressTip();
+        });
+        hit.addEventListener('click', () => selectAndFocus(d.p));
+        progressChart.appendChild(dot);
+        progressChart.appendChild(hit);
+      });
+      progressChart.appendChild(tipG);
+    }
+
+    function render() {
+      const ext = scoreExtent();
+      syncColorInputs(ext);
+      const range = activeColorRange(ext);
+      renderProgressChart(range);
+
+      const visible = visiblePrograms();
+      if (!visible.length) {
+        svg.innerHTML = '';
+        stats.innerHTML = '';
+        details.innerHTML = '<p class="empty">No programs found in this checkpoint.</p>';
+        return;
+      }
+      const visibleIds = new Set(visible.map(p => p.id));
+      if (selected && !visibleIds.has(selected.id)) selected = visible[0] || selected;
+      collapseAllButton.textContent = collapsedIds.size ? 'Expand' : 'Collapse';
+      const size = layout(visible);
+      const familyIds = selectedFamilyIds();
+
+      svg.setAttribute('viewBox', `0 0 ${size.width} ${size.height}`);
+      svg.innerHTML = `<g id="viewport" transform="translate(${transform.x} ${transform.y}) scale(${transform.k})"></g>`;
+      const viewport = svg.querySelector('#viewport');
+
+      visible.forEach(p => {
+        if (!p.parent_id || !byId.has(p.parent_id)) return;
+        const parent = byId.get(p.parent_id);
+        if (!visibleIds.has(parent.id)) return;
+        const cls = [
+          'edge',
+          familyIds.has(p.id) && familyIds.has(parent.id) ? 'selected-line' : ''
+        ].filter(Boolean).join(' ');
+        viewport.insertAdjacentHTML('beforeend', `<path class="${cls}" d="${edgePath(parent, p)}"></path>`);
+      });
+
+      visible.forEach(p => {
+        const cls = [
+          'node',
+          p.id === selected.id ? 'selected' : '',
+          p.id === bestId ? 'best' : ''
+        ].filter(Boolean).join(' ');
+        const labelX = NODE_RADIUS + 8;
+        const selectedValue = combinedScore(p);
+        const valueLabel = fmt(selectedValue, 4);
+        const failedZero = isFailedZeroScore(selectedValue);
+        const dotFill = failedZero ? 'var(--canvas)' : colorForScore(selectedValue, range.min, range.max);
+        const dotClass = failedZero ? 'node-dot node-dot-failed' : 'node-dot';
+        const node = svgEl('g', {
+          class: cls,
+          'data-program-id': p.id,
+          transform: `translate(${p.x} ${p.y})`,
+        });
+        node.innerHTML = `
+      <title>${escapeXml(iterationName(p))}: score ${escapeXml(valueLabel)}${p.children.length ? '; double-click to collapse/show children' : ''}</title>
+      <circle class="hit-area" r="${HIT_RADIUS}"></circle>
+      <circle class="${dotClass}" r="${NODE_RADIUS}" fill="${dotFill}"></circle>
+      ${p.id === bestId ? `<circle class="best-ring" r="${NODE_RADIUS + 5}"></circle><rect class="best-badge" x="${NODE_RADIUS + 7}" y="-25" width="29" height="14" rx="4"></rect><text class="best-label" x="${NODE_RADIUS + 21.5}" y="-15" text-anchor="middle">BEST</text>` : ''}
+      <text x="${labelX}" y="-2">
+        <tspan class="node-id">${escapeXml(iterationName(p))}</tspan>
+        <tspan class="node-value" x="${labelX}" dy="14">${escapeXml(valueLabel)}</tspan>
+      </text>
+    `;
+        node.addEventListener('mousedown', event => event.stopPropagation());
+        node.addEventListener('click', event => {
+          event.stopPropagation();
+          selected = p;
+          render();
+        });
+        node.addEventListener('dblclick', event => {
+          event.stopPropagation();
+          if (!p.children.length) return;
+          if (collapsedIds.has(p.id)) collapsedIds.delete(p.id);
+          else collapsedIds.add(p.id);
+          selected = p;
+          render();
+        });
+        viewport.appendChild(node);
+      });
+      renderDetails();
+    }
+
+    function escapeXml(text) {
+      return String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function setCodeModal(open) {
+      codeModal.classList.toggle('open', open);
+    }
+
+    function openCodeModal() {
+      if (!selected) return;
+      codeModalTitle.textContent = `${iterationName(selected)} code`;
+      codeModalBody.textContent = selected.code || '';
+      setCodeModal(true);
+    }
+
+    function bestProgram() {
+      return byId.get(bestId) || programs.reduce(
+        (a, b) => (combinedScore(a) ?? -Infinity) >= (combinedScore(b) ?? -Infinity) ? a : b,
+        programs[0]
+      );
+    }
+
+    function renderStats() {
+      const best = bestProgram();
+      stats.innerHTML = [
+        ['Programs', DATA.program_count || programs.length],
+        ['Best score', best ? fmt(combinedScore(best), 6) : 'n/a'],
+        ['Max depth', maxDepth],
+        ['Best iter', best ? iterationName(best) : 'n/a']
+      ].map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+    }
+
+    function renderInlineMarkdown(text) {
+      // Order matters: escape first, then apply inline transforms on escaped output.
+      let html = escapeXml(text);
+      html = html.replace(/`([^`]+?)`/g, (_, code) => `<code>${code}</code>`);
+      html = html.replace(/\*\*([^*]+?)\*\*/g, (_, b) => `<strong>${b}</strong>`);
+      html = html.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, (_, pre, em) => `${pre}<em>${em}</em>`);
+      return html;
+    }
+
+    function renderMarkdownBlock(markdown) {
+      const text = String(markdown || '').trim();
+      if (!text) return '';
+      const lines = text.split(/\r?\n/);
+      const parts = [];
+      let bullets = null;
+      let paragraph = null;
+      const flushBullets = () => { if (bullets) { parts.push(`<ul>${bullets.join('')}</ul>`); bullets = null; } };
+      const flushParagraph = () => {
+        if (paragraph && paragraph.length) {
+          parts.push(`<p>${renderInlineMarkdown(paragraph.join(' '))}</p>`);
+        }
+        paragraph = null;
+      };
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) { flushBullets(); flushParagraph(); continue; }
+        if (line.startsWith('#')) {
+          flushBullets(); flushParagraph();
+          const stripped = line.replace(/^#+\s*/, '');
+          parts.push(`<h4>${renderInlineMarkdown(stripped)}</h4>`);
+          continue;
+        }
+        const bulletMatch = line.match(/^(?:[-*•]|\d+\.)\s+(.*)$/);
+        if (bulletMatch) {
+          flushParagraph();
+          if (!bullets) bullets = [];
+          bullets.push(`<li>${renderInlineMarkdown(bulletMatch[1])}</li>`);
+          continue;
+        }
+        flushBullets();
+        if (!paragraph) paragraph = [];
+        paragraph.push(line);
+      }
+      flushBullets();
+      flushParagraph();
+      return parts.join('');
+    }
+
+    function renderSummarySection(title, markdown) {
+      const html = renderMarkdownBlock(markdown);
+      if (!html) return '';
+      return `<div class="section-head"><h3>${escapeXml(title)}</h3></div>
+              <div class="summary-block">${html}</div>`;
+    }
+
+    function renderDetails() {
+      renderStats();
+      if (!selected) {
+        details.innerHTML = '<p class="empty">Select a node to inspect the program.</p>';
+        return;
+      }
+      const parent = selected.parent_id && byId.get(selected.parent_id);
+      const parentScore = selected.parent_metrics && selected.parent_metrics.combined_score;
+      const selectedScore = combinedScore(selected);
+      const delta = selectedScore !== null && Number.isFinite(Number(parentScore)) ? selectedScore - Number(parentScore) : null;
+      const coreFields = [
+        ['Score', fmt(selectedScore, 9)],
+        ['Iteration', iterationName(selected)],
+        ['Depth', fmt(selected.depth, 0)],
+        ['Parent', parent ? iterationName(parent) : 'n/a'],
+        ['Delta vs parent', delta === null ? 'n/a' : fmt(delta, 9)],
+        ['Children', fmt((selected.children_ids || []).length, 0)],
+        ['Language', selected.language || 'n/a'],
+        ['Program id', { __html: `<code>${escapeXml(selected.id)}</code>` }],
+        ['Changes', selected.changes || 'Initial program']
+      ];
+      const metricFields = Object.entries(selected.metrics || {})
+        .sort(([a], [b]) => (a === 'combined_score' ? -1 : b === 'combined_score' ? 1 : a.localeCompare(b)))
+        .map(([key, value]) => [key, fmt(value, typeof value === 'number' ? 9 : 6)]);
+      const metricRows = metricFields.length ? fieldRows(metricFields) : '<div class="field"><span>Metrics</span><span>n/a</span></div>';
+      const llmSummary = selected.llm_summary || null;
+      const summarySections = llmSummary ? `
+    ${renderSummarySection(
+      `LLM summary of solution ${llmSummary.label || iterationName(selected)}`,
+      llmSummary.summary_markdown,
+    )}
+    ${selected.parent_id ? renderSummarySection(
+      'Differences from the parent solution', llmSummary.diff_markdown,
+    ) : ''}
+  ` : '';
+      details.innerHTML = `
+    <h2>${selected.id === bestId ? 'Best Program' : 'Program'}</h2>
+    <div class="id">${selected.id}</div>
+    <div class="section-head"><h3>Program Info</h3></div>
+    <div class="fields">${fieldRows(coreFields)}</div>
+    <div class="section-head"><h3>Task Metrics</h3></div>
+    <div class="fields">${metricRows}</div>
+    ${summarySections}
+    <div class="section-head"><h3>Code</h3><button class="small-button" id="openCodeModal">Full screen</button></div>
+    <pre><code>${escapeXml(selected.code || '')}</code></pre>
+  `;
+      document.getElementById('openCodeModal').addEventListener('click', openCodeModal);
+    }
+
+    collapseAllButton.addEventListener('click', () => {
+      if (collapsedIds.size) collapsedIds.clear();
+      else collapsedIds = new Set(programs.filter(p => p.children.length).map(p => p.id));
+      selected = roots[0] || selected;
+      render();
+    });
+    resetButton.addEventListener('click', () => {
+      transform = { x: 40, y: 48, k: 1 };
+      collapsedIds.clear();
+      selected = roots[0] || programs[0];
+      render();
+    });
+    document.getElementById('closeCodeModal').addEventListener('click', () => setCodeModal(false));
+    codeModal.addEventListener('click', event => {
+      if (event.target === codeModal) setCodeModal(false);
+    });
+    window.addEventListener('keydown', event => {
+      if (event.key === 'Escape') setCodeModal(false);
+    });
+
+    let drag = null;
+    svg.addEventListener('mousedown', event => {
+      if (event.button !== 0) return;
+      drag = { x: event.clientX, y: event.clientY, tx: transform.x, ty: transform.y, moved: false };
+      svg.classList.add('dragging');
+    });
+    window.addEventListener('mousemove', event => {
+      if (!drag) return;
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      if (Math.hypot(dx, dy) > DRAG_THRESHOLD) drag.moved = true;
+      const m = treeUserPerCssPx();
+      transform.x = drag.tx + dx * m;
+      transform.y = drag.ty + dy * m;
+      applyTransform();
+    });
+    window.addEventListener('mouseup', () => {
+      drag = null;
+      svg.classList.remove('dragging');
+    });
+    svg.addEventListener('wheel', event => {
+      event.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const m = treeUserPerCssPx();
+      const pivot = { x: (event.clientX - rect.left) * m, y: (event.clientY - rect.top) * m };
+      const oldK = transform.k;
+      const nextK = Math.min(3, Math.max(0.25, oldK * (event.deltaY > 0 ? 0.9 : 1.1)));
+      const r = nextK / oldK;
+      transform.x = pivot.x - (pivot.x - transform.x) * r;
+      transform.y = pivot.y - (pivot.y - transform.y) * r;
+      transform.k = nextK;
+      render();
+    }, { passive: false });
+
+    colorMinInput.addEventListener('change', () => { colorScaleAuto = false; render(); });
+    colorMaxInput.addEventListener('change', () => { colorScaleAuto = false; render(); });
+    colorScaleResetBtn.addEventListener('click', () => { colorScaleAuto = true; render(); });
+
+    render();
+  </script>
+</body>
+
+</html>

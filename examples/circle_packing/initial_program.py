@@ -1,18 +1,19 @@
 # EVOLVE-BLOCK-START
-"""Constructor-based circle packing for n=26 circles"""
+"""Constructor-based circle packing for n=26 circles."""
+
 import numpy as np
 
 
 def construct_packing():
     """
-    Construct a specific arrangement of 26 circles in a unit square
-    that attempts to maximize the sum of their radii.
+    Construct an arrangement of 26 circles in a unit square.
 
-    Returns:
-        Tuple of (centers, radii, sum_of_radii)
-        centers: np.array of shape (26, 2) with (x, y) coordinates
-        radii: np.array of shape (26) with radius of each circle
-        sum_of_radii: Sum of all radii
+    Attempts to maximize the sum of their radii.
+
+    Returns
+    -------
+    tuple
+        (centers, radii, sum_of_radii)
     """
     # Initialize arrays for 26 circles
     n = 26
@@ -50,14 +51,9 @@ def construct_packing():
 
 def compute_max_radii(centers):
     """
-    Compute the maximum possible radii for each circle position
-    such that they don't overlap and stay within the unit square.
+    Compute the maximum possible radii for each circle position.
 
-    Args:
-        centers: np.array of shape (n, 2) with (x, y) coordinates
-
-    Returns:
-        np.array of shape (n) with radius of each circle
+    Ensures they don't overlap and stay within the unit square.
     """
     n = centers.shape[0]
     radii = np.ones(n)
@@ -90,19 +86,13 @@ def compute_max_radii(centers):
 
 # This part remains fixed (not evolved)
 def run_packing():
-    """Run the circle packing constructor for n=26"""
+    """Run the circle packing constructor for n=26."""
     centers, radii, sum_radii = construct_packing()
     return centers, radii, sum_radii
 
 
 def visualize(centers, radii):
-    """
-    Visualize the circle packing
-
-    Args:
-        centers: np.array of shape (n, 2) with (x, y) coordinates
-        radii: np.array of shape (n) with radius of each circle
-    """
+    """Visualize the circle packing."""
     import matplotlib.pyplot as plt
     from matplotlib.patches import Circle
 

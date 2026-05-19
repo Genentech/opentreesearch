@@ -1,37 +1,37 @@
-"""
-Evaluator for circle packing example (n=26) with improved timeout handling
-"""
+"""Evaluator for circle packing example (n=26)."""
 
-import importlib.util
-import numpy as np
-import time
 import os
-import signal
-import subprocess
-import tempfile
-import traceback
-import sys
 import pickle
+import subprocess
+import sys
+import tempfile
+import time
+import traceback
+
+import numpy as np
+
+_INNER_TIMEOUT = int(os.environ.get("OPENEVOLVE_EVAL_TIMEOUT", "300"))
 
 
 class TimeoutError(Exception):
-    pass
+    """Raised when function execution exceeds time limit."""
 
 
 def timeout_handler(signum, frame):
-    """Handle timeout signal"""
+    """Handle timeout signal."""
     raise TimeoutError("Function execution timed out")
 
 
 def validate_packing(centers, radii):
     """
-    Validate that circles don't overlap and are inside the unit square
+    Validate that circles don't overlap and are inside the unit square.
 
     Args:
         centers: np.array of shape (n, 2) with (x, y) coordinates
         radii: np.array of shape (n) with radius of each circle
 
-    Returns:
+    Returns
+    -------
         True if valid, False otherwise
     """
     n = centers.shape[0]
@@ -67,7 +67,7 @@ def validate_packing(centers, radii):
         for j in range(i + 1, n):
             dist = np.sqrt(np.sum((centers[i] - centers[j]) ** 2))
             if dist < radii[i] + radii[j] - 1e-6:  # Allow for tiny numerical errors
-                print(f"Circles {i} and {j} overlap: dist={dist}, r1+r2={radii[i]+radii[j]}")
+                print(f"Circles {i} and {j} overlap: dist={dist}, r1+r2={radii[i] + radii[j]}")
                 return False
 
     return True
@@ -75,14 +75,16 @@ def validate_packing(centers, radii):
 
 def run_with_timeout(program_path, timeout_seconds=20):
     """
-    Run the program in a separate process with timeout
-    using a simple subprocess approach
+    Run the program in a separate process with timeout.
+
+    Uses a simple subprocess approach.
 
     Args:
         program_path: Path to the program file
         timeout_seconds: Maximum execution time in seconds
 
-    Returns:
+    Returns
+    -------
         centers, radii, sum_radii tuple from the program
     """
     # Create a temporary file to execute
@@ -107,7 +109,7 @@ try:
     spec = __import__('importlib.util').util.spec_from_file_location("program", '{program_path}')
     program = __import__('importlib.util').util.module_from_spec(spec)
     spec.loader.exec_module(program)
-    
+
     # Run the packing function
     print("Calling run_packing()...")
     centers, radii, sum_radii = program.run_packing()
@@ -123,7 +125,7 @@ try:
     with open('{temp_file.name}.results', 'wb') as f:
         pickle.dump(results, f)
     print(f"Results saved to {temp_file.name}.results")
-    
+
 except Exception as e:
     # If an error occurs, save the error instead
     print(f"Error in subprocess: {{str(e)}}")
@@ -185,12 +187,13 @@ except Exception as e:
 
 def evaluate(program_path):
     """
-    Evaluate the program by running it once and checking the sum of radii
+    Evaluate the program by running it once and checking the sum of radii.
 
     Args:
         program_path: Path to the program file
 
-    Returns:
+    Returns
+    -------
         Dictionary of metrics
     """
     # Target value from the paper
@@ -203,7 +206,8 @@ def evaluate(program_path):
 
         # Use subprocess to run with timeout
         centers, radii, reported_sum = run_with_timeout(
-            program_path, timeout_seconds=600  # Single timeout
+            program_path,
+            timeout_seconds=_INNER_TIMEOUT,
         )
 
         end_time = time.time()
@@ -279,13 +283,13 @@ def evaluate(program_path):
 
 # Stage-based evaluation for cascade evaluation
 def evaluate_stage1(program_path):
-    """
-    First stage evaluation - quick validation check
-    """
+    """First stage evaluation - quick validation check."""
     try:
         # Use the simplified subprocess approach
         try:
-            centers, radii, sum_radii = run_with_timeout(program_path, timeout_seconds=600)
+            centers, radii, sum_radii = run_with_timeout(
+                program_path, timeout_seconds=_INNER_TIMEOUT
+            )
 
             # Ensure centers and radii are numpy arrays
             if not isinstance(centers, np.ndarray):
@@ -333,8 +337,6 @@ def evaluate_stage1(program_path):
 
 
 def evaluate_stage2(program_path):
-    """
-    Second stage evaluation - full evaluation
-    """
+    """Second stage evaluation - full evaluation."""
     # Full evaluation as in the main evaluate function
     return evaluate(program_path)

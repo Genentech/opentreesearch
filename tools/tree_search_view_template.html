@@ -1,0 +1,1284 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tree Search Program Viewer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f9fc;
+      --canvas: #fbfdff;
+      --ink: #172033;
+      --muted: #64748b;
+      --line: #dbe4f0;
+      --panel: #ffffff;
+      --blue-deep: #173f7a;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      height: 100vh;
+      min-height: 620px;
+    }
+
+    .main {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px 20px;
+      align-items: start;
+      padding: 10px 22px 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(175deg, #ffffff 0%, #f9fbfe 55%, #f5f8fc 100%);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+    }
+
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      color: var(--muted);
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .hero-chart-wrap {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .color-scale-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      padding: 0 0 0 14px;
+      margin: 0;
+      border: none;
+      border-left: 1px solid rgba(219, 228, 240, 0.85);
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 148px;
+    }
+
+    .color-scale-hint {
+      font-weight: 650;
+      color: var(--ink);
+    }
+
+    .color-scale-field {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .color-scale-panel input[type="number"] {
+      width: 84px;
+      height: 26px;
+      padding: 0 7px;
+      border: 1px solid #cfd9e8;
+      border-radius: 6px;
+      font: 11px var(--mono);
+      color: var(--ink);
+      background: #fff;
+      appearance: textfield;
+      -moz-appearance: textfield;
+    }
+
+    .color-scale-panel input[type="number"]::-webkit-outer-spin-button,
+    .color-scale-panel input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .color-scale-panel input[type="number"]:focus {
+      outline: none;
+      border-color: var(--blue-deep);
+      box-shadow: 0 0 0 2px rgba(23, 63, 122, 0.12);
+    }
+
+    .color-scale-panel > .small-button {
+      height: 26px;
+      padding: 0 9px;
+      font-size: 11px;
+      align-self: flex-start;
+      margin-top: 2px;
+    }
+
+    .hero-right {
+      justify-self: end;
+      align-self: start;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .controls button,
+    .small-button {
+      height: 30px;
+      border: 1px solid #cfd9e8;
+      background: #ffffff;
+      border-radius: 7px;
+      padding: 0 12px;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(23, 32, 51, 0.05);
+    }
+
+    .controls button:hover,
+    .small-button:hover {
+      border-color: #b8c6d8;
+      background: #fafcfe;
+    }
+
+    .vizwrap {
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #tree {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+      background: var(--canvas);
+    }
+
+    #tree.dragging {
+      cursor: grabbing;
+    }
+
+    #progressChart {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1400 / 212;
+      max-height: 220px;
+    }
+
+    .progress-grid {
+      stroke: #edf2f8;
+      stroke-width: 1.25;
+    }
+
+    .progress-axis {
+      stroke: #b7c4d5;
+      stroke-width: 1.45;
+    }
+
+    .progress-line {
+      fill: none;
+      stroke-width: 3.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .progress-dot {
+      stroke: #ffffff;
+      stroke-width: 2.6;
+      cursor: pointer;
+    }
+
+    .progress-dot.failed {
+      fill: #ffffff;
+      stroke: #94a3b8;
+    }
+
+    .progress-dot:hover {
+      stroke: var(--ink);
+    }
+
+    .progress-dot.failed:hover {
+      stroke: var(--ink);
+    }
+
+    .progress-dot-hit {
+      cursor: pointer;
+    }
+
+    #progressChartTooltip {
+      pointer-events: none;
+    }
+
+    .progress-tip-bg {
+      fill: rgba(255, 255, 255, 0.97);
+      stroke: var(--line);
+      stroke-width: 1;
+      filter: drop-shadow(0 2px 10px rgba(23, 32, 51, 0.12));
+    }
+
+    .progress-tip-text {
+      fill: var(--ink);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .progress-label {
+      fill: var(--muted);
+      font-size: 13px;
+    }
+
+    .edge {
+      fill: none;
+      stroke: #cbd7e6;
+      stroke-width: 1.6;
+      opacity: 0.76;
+    }
+
+    .edge.selected-line {
+      stroke: var(--blue-deep);
+      stroke-width: 2.8;
+      opacity: 1;
+    }
+
+    .node {
+      cursor: pointer;
+    }
+
+    .node .hit-area {
+      fill: transparent;
+      stroke: none;
+      pointer-events: all;
+    }
+
+    .node .node-dot {
+      stroke: #ffffff;
+      stroke-width: 2.4;
+      filter: drop-shadow(0 4px 10px rgba(23, 32, 51, 0.14));
+    }
+
+    .node .node-dot.node-dot-failed {
+      fill: var(--canvas);
+      stroke: #94a3b8;
+      filter: drop-shadow(0 2px 6px rgba(23, 32, 51, 0.08));
+    }
+
+    .node text {
+      pointer-events: none;
+      font-size: 11px;
+      fill: var(--ink);
+      paint-order: stroke;
+      stroke: rgba(255, 255, 255, 0.82);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+    }
+
+    .node .node-id {
+      fill: #43526a;
+      font-weight: 650;
+    }
+
+    .node .node-value {
+      font-size: 10px;
+      font-weight: 760;
+      fill: var(--ink);
+    }
+
+    .node.selected .node-dot {
+      stroke: var(--blue-deep);
+      stroke-width: 4;
+    }
+
+    .node .best-ring {
+      fill: none;
+      stroke: var(--blue-deep);
+      stroke-width: 2.6;
+      pointer-events: none;
+    }
+
+    .node .best-badge {
+      fill: var(--blue-deep);
+      stroke: none;
+    }
+
+    .node .best-label {
+      fill: #ffffff;
+      font-size: 8px;
+      font-weight: 760;
+      letter-spacing: 0.4px;
+      paint-order: normal;
+      stroke: none;
+    }
+
+    .node.best .node-dot {
+      stroke: #ffffff;
+      stroke-width: 2.4;
+    }
+
+    .node.best .node-dot.node-dot-failed {
+      stroke: #94a3b8;
+    }
+
+    .node.selected .node-dot.node-dot-failed {
+      stroke: var(--blue-deep);
+      stroke-width: 4;
+    }
+
+    .scorebar {
+      border: 1px solid #b9c7d9;
+      border-radius: 999px;
+    }
+
+    .side {
+      border-left: 1px solid var(--line);
+      background: var(--panel);
+      overflow: auto;
+      padding: 18px;
+    }
+
+    .statgrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 10px;
+      background: #f8fbff;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 2px;
+    }
+
+    .stat span {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .details h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .section-head h3 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .small-button {
+      height: 28px;
+      padding: 0 9px;
+      font-size: 12px;
+    }
+
+    .id {
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.4;
+      word-break: break-all;
+      color: var(--muted);
+    }
+
+    .fields {
+      margin: 16px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .field {
+      display: grid;
+      grid-template-columns: 122px minmax(0, 1fr);
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .field span:first-child {
+      color: var(--muted);
+    }
+
+    .field code {
+      font-family: var(--mono);
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    pre {
+      margin: 12px 0 0;
+      padding: 12px;
+      max-height: 360px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f8fbff;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .summary-block {
+      margin-top: 10px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f8fbff;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--ink);
+    }
+
+    .summary-block h4 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .summary-block ul {
+      margin: 4px 0 0;
+      padding-left: 20px;
+    }
+
+    .summary-block li + li {
+      margin-top: 4px;
+    }
+
+    .summary-block p {
+      margin: 4px 0;
+    }
+
+    .summary-block p + ul {
+      margin-top: 2px;
+    }
+
+    .summary-block code {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: #eef3fb;
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #1f2a3d;
+    }
+
+
+    .code-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      grid-template-rows: auto 1fr;
+      background: rgba(23, 32, 51, 0.36);
+      backdrop-filter: blur(5px);
+      padding: 28px;
+    }
+
+    .code-modal.open {
+      display: grid;
+    }
+
+    .code-modal-panel {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 24px 70px rgba(23, 32, 51, 0.24);
+    }
+
+    .code-modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .code-modal-head h2 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .code-modal pre {
+      max-height: none;
+      height: 100%;
+      margin: 0;
+      border: 0;
+      border-radius: 0 0 8px 8px;
+      background: #f8fbff;
+      font-size: 13px;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) auto;
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
+      }
+
+      .side {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+        max-height: 42vh;
+      }
+
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        align-items: stretch;
+        padding: 14px 16px 16px;
+      }
+
+      .hero-right {
+        justify-self: stretch;
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .color-scale-panel {
+        border-left: none;
+        border-top: 1px solid rgba(219, 228, 240, 0.85);
+        padding: 10px 0 0;
+        min-width: 0;
+      }
+
+      .controls {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <main class="main">
+      <header class="hero">
+        <div class="hero-chart-wrap">
+          <h1>Tree Search Program Viewer</h1>
+          <svg id="progressChart" role="img" aria-label="Search progress: best combined score over iterations"></svg>
+        </div>
+        <div class="hero-right">
+          <div class="controls">
+            <button id="collapseAll">Collapse</button>
+            <button id="reset" title="Reset pan, zoom, and expansion">Reset view</button>
+          </div>
+          <div class="color-scale-panel">
+            <span class="color-scale-hint">Colors</span>
+            <label class="color-scale-field"><span>Low</span><input type="number" id="colorMinInput" step="any" aria-label="Color scale low" /></label>
+            <label class="color-scale-field"><span>High</span><input type="number" id="colorMaxInput" step="any" aria-label="Color scale high" /></label>
+            <button type="button" class="small-button" id="colorScaleAutoBtn" title="Restore automatic low/high from data">Reset</button>
+          </div>
+        </div>
+      </header>
+      <section class="vizwrap">
+        <svg id="tree" role="img" aria-label="Program tree search visualization"
+          preserveAspectRatio="xMinYMin slice"></svg>
+      </section>
+    </main>
+    <aside class="side">
+      <section class="statgrid" id="stats"></section>
+      <section class="details" id="details"></section>
+    </aside>
+  </div>
+  <div class="code-modal" id="codeModal" role="dialog" aria-modal="true" aria-labelledby="codeModalTitle">
+    <div class="code-modal-panel">
+      <div class="code-modal-head">
+        <h2 id="codeModalTitle">Program Code</h2>
+        <button class="small-button" id="closeCodeModal">Close</button>
+      </div>
+      <pre><code id="codeModalBody"></code></pre>
+    </div>
+  </div>
+  <script id="checkpoint-data" type="application/json">__CHECKPOINT_DATA_JSON__</script>
+  <script>
+    const DATA = JSON.parse(document.getElementById('checkpoint-data').textContent);
+    const programs = (DATA.programs || []).map(p => ({ ...p, children: [] }));
+    const byId = new Map(programs.map(p => [p.id, p]));
+    const bestId = DATA.best_program && DATA.best_program.id || (DATA.metadata || {}).best_program_id;
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    function svgEl(tag, attrs) {
+      const el = document.createElementNS(SVG_NS, tag);
+      if (attrs) for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+      return el;
+    }
+    const NODE_RADIUS = 17;
+    const HIT_RADIUS = 28;
+    const LEVEL_GAP = 220;
+    const ROW_GAP = 74;
+    const DRAG_THRESHOLD = 4;
+    const PROGRESS_CHART = {
+      w: 1400,
+      h: 212,
+      pad: { left: 112, right: 22, top: 38, bottom: 44 },
+      axisTitle: { x: 18, y: 18 },
+      scoreBar: { x: 18, w: 12 },
+    };
+    programs.forEach(p => {
+      if (p.parent_id && byId.has(p.parent_id)) byId.get(p.parent_id).children.push(p);
+    });
+    const roots = programs.filter(p => !p.parent_id || !byId.has(p.parent_id));
+    const maxDepth = programs.length ? Math.max(...programs.map(p => Number(p.depth || 0))) : 0;
+    let selected = roots[0] || programs[0];
+    let transform = { x: 40, y: 48, k: 1 };
+    let collapsedIds = new Set();
+
+    let colorScaleAuto = true;
+
+    const svg = document.getElementById('tree');
+    const progressChart = document.getElementById('progressChart');
+    const details = document.getElementById('details');
+    const stats = document.getElementById('stats');
+    const collapseAllButton = document.getElementById('collapseAll');
+    const resetButton = document.getElementById('reset');
+    const codeModal = document.getElementById('codeModal');
+    const codeModalTitle = document.getElementById('codeModalTitle');
+    const codeModalBody = document.getElementById('codeModalBody');
+    const colorMinInput = document.getElementById('colorMinInput');
+    const colorMaxInput = document.getElementById('colorMaxInput');
+    const colorScaleResetBtn = document.getElementById('colorScaleAutoBtn');
+
+    function fmt(value, digits = 6) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return 'n/a';
+      if (typeof value === 'number') {
+        if (digits === 0) return value.toFixed(0);
+        return value.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+      }
+      return String(value);
+    }
+
+    function iterationName(p) {
+      const iteration = Number(p && p.iteration_found);
+      if (Number.isFinite(iteration)) return `#${iteration}`;
+      const id = p && p.id;
+      return id ? id.slice(0, 8) : 'root';
+    }
+
+    function combinedScore(p) {
+      const value = p && p.combined_score;
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : null;
+    }
+
+    function isFailedZeroScore(value) {
+      return value !== null && Math.abs(Number(value)) < 1e-15;
+    }
+
+    function colorForScore(value, minScore, maxScore) {
+      if (value === null || maxScore === minScore) return '#8a928c';
+      const t = Math.max(0, Math.min(1, (value - minScore) / (maxScore - minScore)));
+      const low = [230, 237, 247];
+      const high = [36, 84, 166];
+      const rgb = low.map((v, i) => Math.round(v + (high[i] - v) * t));
+      return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    }
+
+    function byIteration(a, b) {
+      return (a.iteration_found || 0) - (b.iteration_found || 0) || a.id.localeCompare(b.id);
+    }
+
+    function fieldRows(rows) {
+      return rows
+        .map(([k, v]) => {
+          const inner = v && v.__html !== undefined ? v.__html : escapeXml(v);
+          return `<div class="field"><span>${escapeXml(k)}</span><span>${inner}</span></div>`;
+        })
+        .join('');
+    }
+
+    function scoreExtent() {
+      const scores = programs.map(combinedScore).filter(v => v !== null);
+      const positives = scores.filter(v => v > 0);
+      const max = scores.length ? Math.max(...scores) : 0;
+      const minForColor = positives.length ? Math.min(...positives) : max;
+      return { max, minForColor };
+    }
+
+    function syncColorInputs(ext) {
+      if (!colorScaleAuto) return;
+      colorMinInput.value = fmt(ext.minForColor, 10);
+      colorMaxInput.value = fmt(ext.max, 10);
+    }
+
+    function activeColorRange(ext) {
+      if (colorScaleAuto) return { min: ext.minForColor, max: ext.max };
+      let lo = parseFloat(colorMinInput.value);
+      let hi = parseFloat(colorMaxInput.value);
+      if (!Number.isFinite(lo)) lo = ext.minForColor;
+      if (!Number.isFinite(hi)) hi = ext.max;
+      if (lo >= hi) hi = lo + Math.max(1e-12, Math.abs(lo) * 1e-12 + 1e-15);
+      return { min: lo, max: hi };
+    }
+
+    function progressData() {
+      let best = -Infinity;
+      const series = [];
+      const breakthroughs = [];
+      programs
+        .filter(p => Number.isFinite(Number(p.iteration_found)) && combinedScore(p) !== null)
+        .slice()
+        .sort(byIteration)
+        .forEach(p => {
+          const score = combinedScore(p);
+          if (score > best + 1e-12) {
+            best = score;
+            breakthroughs.push({ p, x: Number(p.iteration_found), y: best });
+          }
+          series.push({ p, x: Number(p.iteration_found), y: best });
+        });
+      return { series, breakthroughs };
+    }
+
+    function selectedFamilyIds() {
+      const ids = new Set();
+      for (let q = selected; q; q = q.parent_id ? byId.get(q.parent_id) : null) ids.add(q.id);
+      return ids;
+    }
+
+    function visiblePrograms() {
+      const visible = [];
+      const seen = new Set();
+      function visit(p) {
+        if (!p || seen.has(p.id)) return;
+        seen.add(p.id);
+        visible.push(p);
+        if (collapsedIds.has(p.id)) return;
+        p.children.slice().sort(byIteration).forEach(visit);
+      }
+      roots.slice().sort(byIteration).forEach(visit);
+      return visible;
+    }
+
+    function layout(nodesToLayout) {
+      const levels = new Map();
+      nodesToLayout.forEach(p => {
+        const d = Number(p.depth || 0);
+        if (!levels.has(d)) levels.set(d, []);
+        levels.get(d).push(p);
+      });
+      const width = Math.max(1200, (maxDepth + 1) * (LEVEL_GAP + 15));
+      let maxRows = 0;
+      for (const [d, nodes] of levels) {
+        nodes.sort(byIteration);
+        maxRows = Math.max(maxRows, nodes.length);
+        nodes.forEach((p, i) => {
+          p.x = 90 + d * LEVEL_GAP;
+          p.y = 62 + i * ROW_GAP;
+        });
+      }
+      return { width, height: Math.max(720, 140 + maxRows * ROW_GAP) };
+    }
+
+    function edgePath(parent, child) {
+      const mx = (parent.x + child.x) / 2;
+      return `M ${parent.x} ${parent.y} C ${mx} ${parent.y}, ${mx} ${child.y}, ${child.x} ${child.y}`;
+    }
+
+    function applyTransform() {
+      const viewport = svg.querySelector('#viewport');
+      if (viewport) viewport.setAttribute('transform', `translate(${transform.x} ${transform.y}) scale(${transform.k})`);
+    }
+
+    function treeSvgViewSize() {
+      const vb = svg.viewBox.baseVal;
+      return { w: vb.width || 1200, h: vb.height || 720 };
+    }
+
+    function treeUserPerCssPx() {
+      const r = svg.getBoundingClientRect();
+      const { w, h } = treeSvgViewSize();
+      return 1 / (Math.max(r.width / w, r.height / h) || 1);
+    }
+
+    const FOCUS_ZOOM = 1.45;
+
+    function centerTreeOnProgram(programId) {
+      const p = byId.get(programId);
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
+
+      const { w, h } = treeSvgViewSize();
+      const k = FOCUS_ZOOM;
+      transform.x = w / 2 - p.x * k;
+      transform.y = h / 2 - p.y * k;
+      transform.k = k;
+      applyTransform();
+
+      requestAnimationFrame(() => {
+        const sel = typeof CSS !== 'undefined' && CSS.escape
+          ? `#viewport .node[data-program-id="${CSS.escape(programId)}"]`
+          : null;
+        const nodeEl = sel ? svg.querySelector(sel) : [...svg.querySelectorAll('#viewport .node')].find(
+          el => el.getAttribute('data-program-id') === programId
+        );
+        if (!nodeEl) return;
+        const svgRect = svg.getBoundingClientRect();
+        const nodeRect = nodeEl.getBoundingClientRect();
+        const nx = (nodeRect.left + nodeRect.right) / 2 - svgRect.left;
+        const ny = (nodeRect.top + nodeRect.bottom) / 2 - svgRect.top;
+        const m = treeUserPerCssPx();
+        transform.x += (svgRect.width / 2 - nx) * m;
+        transform.y += (svgRect.height / 2 - ny) * m;
+        applyTransform();
+      });
+    }
+
+    function selectAndFocus(p) {
+      if (!p) return;
+      for (let a = byId.get(p.parent_id); a; a = byId.get(a.parent_id)) {
+        collapsedIds.delete(a.id);
+      }
+      selected = p;
+      if (!visiblePrograms().some(q => q.id === p.id)) collapsedIds.clear();
+      render();
+      if (selected.id === p.id) centerTreeOnProgram(p.id);
+    }
+
+    function renderProgressChart(range) {
+      const { series, breakthroughs } = progressData();
+      const { w: width, h: height, pad, axisTitle, scoreBar } = PROGRESS_CHART;
+      progressChart.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      if (!series.length) {
+        progressChart.innerHTML = `<text class="progress-label" x="${pad.left}" y="${height / 2}">No score data</text>`;
+        return;
+      }
+      const xs = series.map(d => d.x);
+      const ys = series.map(d => d.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const spanX = Math.max(1, maxX - minX);
+      const spanY = Math.max(1e-12, maxY - minY);
+      const xScale = x => pad.left + ((x - minX) / spanX) * (width - pad.left - pad.right);
+      const yScale = y => height - pad.bottom - ((y - minY) / spanY) * (height - pad.top - pad.bottom);
+      progressChart.innerHTML = `
+    <defs>
+      <linearGradient id="scoreGradient" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="#e6edf7"></stop>
+        <stop offset="100%" stop-color="#2454a6"></stop>
+      </linearGradient>
+    </defs>
+    <rect class="scorebar" x="${scoreBar.x}" y="${pad.top}" width="${scoreBar.w}" height="${height - pad.top - pad.bottom}" fill="url(#scoreGradient)"></rect>
+    <line class="progress-grid" x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${height - pad.bottom}"></line>
+    <line class="progress-grid" x1="${pad.left}" y1="${yScale((minY + maxY) / 2)}" x2="${width - pad.right}" y2="${yScale((minY + maxY) / 2)}"></line>
+    <line class="progress-grid" x1="${pad.left}" y1="${pad.top}" x2="${width - pad.right}" y2="${pad.top}"></line>
+    <line class="progress-axis" x1="${pad.left}" y1="${height - pad.bottom}" x2="${width - pad.right}" y2="${height - pad.bottom}"></line>
+    <line class="progress-axis" x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${height - pad.bottom}"></line>
+    <text class="progress-label" x="${axisTitle.x}" y="${axisTitle.y}">maximum combined_score</text>
+    <text class="progress-label" x="${pad.left}" y="${height - 14}">iteration</text>
+    <text class="progress-label" x="${width - pad.right}" y="${height - 14}" text-anchor="end">${fmt(maxX, 0)}</text>
+    <text class="progress-label" x="${pad.left - 12}" y="${yScale(maxY) + 6}" text-anchor="end">${fmt(maxY, 4)}</text>
+    <text class="progress-label" x="${pad.left - 12}" y="${yScale(minY) + 6}" text-anchor="end">${fmt(minY, 4)}</text>
+  `;
+      const addSegment = (d, score) => {
+        const stroke = isFailedZeroScore(score)
+          ? '#cbd5e1'
+          : colorForScore(score, range.min, range.max);
+        progressChart.appendChild(svgEl('path', {
+          class: 'progress-line',
+          d,
+          stroke,
+        }));
+      };
+      series.forEach((d, i) => {
+        const x = xScale(d.x), y = yScale(d.y);
+        if (i === 0) return;
+        const prev = series[i - 1];
+        const px = xScale(prev.x), py = yScale(prev.y);
+        addSegment(`M ${px} ${py} H ${x}`, prev.y);
+        if (prev.y !== d.y) addSegment(`M ${x} ${py} V ${y}`, d.y);
+      });
+      const tipG = svgEl('g', { id: 'progressChartTooltip', visibility: 'hidden' });
+      const tipBg = svgEl('rect', { class: 'progress-tip-bg' });
+      const tipTxt = svgEl('text', { class: 'progress-tip-text', 'text-anchor': 'middle' });
+      tipG.append(tipBg, tipTxt);
+
+      const showProgressTip = (cx, cy, label) => {
+        tipTxt.textContent = label;
+        tipTxt.setAttribute('x', cx);
+        tipTxt.setAttribute('y', cy - 14);
+        tipG.setAttribute('visibility', 'visible');
+        const bb = tipTxt.getBBox();
+        const pad = 6;
+        tipBg.setAttribute('x', bb.x - pad);
+        tipBg.setAttribute('y', bb.y - pad);
+        tipBg.setAttribute('width', bb.width + 2 * pad);
+        tipBg.setAttribute('height', bb.height + 2 * pad);
+        tipBg.setAttribute('rx', '5');
+        tipBg.setAttribute('ry', '5');
+      };
+      const hideProgressTip = () => tipG.setAttribute('visibility', 'hidden');
+
+      const cxs = breakthroughs.map(d => xScale(d.x)).sort((a, b) => a - b);
+      const minGap = cxs.slice(1).reduce(
+        (m, x, i) => Math.min(m, x - cxs[i]),
+        Infinity,
+      );
+      const hitR = Math.max(10, Math.min(28, isFinite(minGap) ? minGap / 2 : 18));
+      breakthroughs.forEach(d => {
+        const cx = xScale(d.x);
+        const cy = yScale(d.y);
+        const name = iterationName(d.p);
+        const scoreStr = fmt(d.y, 6);
+        const label = `${name} · ${scoreStr}`;
+        const failedTip = isFailedZeroScore(d.y);
+        const fill = failedTip ? '#ffffff' : colorForScore(d.y, range.min, range.max);
+        const dotClass = failedTip ? 'progress-dot failed' : 'progress-dot';
+        const dot = svgEl('circle', { class: dotClass, cx, cy, r: 8, fill });
+        dot.innerHTML = `<title>${escapeXml(name)}: ${escapeXml(scoreStr)}</title>`;
+        const hit = svgEl('circle', {
+          class: 'progress-dot-hit', cx, cy, r: hitR, fill: 'transparent',
+        });
+        hit.addEventListener('mouseenter', () => {
+          dot.setAttribute('r', '11');
+          showProgressTip(cx, cy, label);
+        });
+        hit.addEventListener('mouseleave', () => {
+          dot.setAttribute('r', '8');
+          hideProgressTip();
+        });
+        hit.addEventListener('click', () => selectAndFocus(d.p));
+        progressChart.appendChild(dot);
+        progressChart.appendChild(hit);
+      });
+      progressChart.appendChild(tipG);
+    }
+
+    function render() {
+      const ext = scoreExtent();
+      syncColorInputs(ext);
+      const range = activeColorRange(ext);
+      renderProgressChart(range);
+
+      const visible = visiblePrograms();
+      if (!visible.length) {
+        svg.innerHTML = '';
+        stats.innerHTML = '';
+        details.innerHTML = '<p class="empty">No programs found in this checkpoint.</p>';
+        return;
+      }
+      const visibleIds = new Set(visible.map(p => p.id));
+      if (selected && !visibleIds.has(selected.id)) selected = visible[0] || selected;
+      collapseAllButton.textContent = collapsedIds.size ? 'Expand' : 'Collapse';
+      const size = layout(visible);
+      const familyIds = selectedFamilyIds();
+
+      svg.setAttribute('viewBox', `0 0 ${size.width} ${size.height}`);
+      svg.innerHTML = `<g id="viewport" transform="translate(${transform.x} ${transform.y}) scale(${transform.k})"></g>`;
+      const viewport = svg.querySelector('#viewport');
+
+      visible.forEach(p => {
+        if (!p.parent_id || !byId.has(p.parent_id)) return;
+        const parent = byId.get(p.parent_id);
+        if (!visibleIds.has(parent.id)) return;
+        const cls = [
+          'edge',
+          familyIds.has(p.id) && familyIds.has(parent.id) ? 'selected-line' : ''
+        ].filter(Boolean).join(' ');
+        viewport.insertAdjacentHTML('beforeend', `<path class="${cls}" d="${edgePath(parent, p)}"></path>`);
+      });
+
+      visible.forEach(p => {
+        const cls = [
+          'node',
+          p.id === selected.id ? 'selected' : '',
+          p.id === bestId ? 'best' : ''
+        ].filter(Boolean).join(' ');
+        const labelX = NODE_RADIUS + 8;
+        const selectedValue = combinedScore(p);
+        const valueLabel = fmt(selectedValue, 4);
+        const failedZero = isFailedZeroScore(selectedValue);
+        const dotFill = failedZero ? 'var(--canvas)' : colorForScore(selectedValue, range.min, range.max);
+        const dotClass = failedZero ? 'node-dot node-dot-failed' : 'node-dot';
+        const node = svgEl('g', {
+          class: cls,
+          'data-program-id': p.id,
+          transform: `translate(${p.x} ${p.y})`,
+        });
+        node.innerHTML = `
+      <title>${escapeXml(iterationName(p))}: score ${escapeXml(valueLabel)}${p.children.length ? '; double-click to collapse/show children' : ''}</title>
+      <circle class="hit-area" r="${HIT_RADIUS}"></circle>
+      <circle class="${dotClass}" r="${NODE_RADIUS}" fill="${dotFill}"></circle>
+      ${p.id === bestId ? `<circle class="best-ring" r="${NODE_RADIUS + 5}"></circle><rect class="best-badge" x="${NODE_RADIUS + 7}" y="-25" width="29" height="14" rx="4"></rect><text class="best-label" x="${NODE_RADIUS + 21.5}" y="-15" text-anchor="middle">BEST</text>` : ''}
+      <text x="${labelX}" y="-2">
+        <tspan class="node-id">${escapeXml(iterationName(p))}</tspan>
+        <tspan class="node-value" x="${labelX}" dy="14">${escapeXml(valueLabel)}</tspan>
+      </text>
+    `;
+        node.addEventListener('mousedown', event => event.stopPropagation());
+        node.addEventListener('click', event => {
+          event.stopPropagation();
+          selected = p;
+          render();
+        });
+        node.addEventListener('dblclick', event => {
+          event.stopPropagation();
+          if (!p.children.length) return;
+          if (collapsedIds.has(p.id)) collapsedIds.delete(p.id);
+          else collapsedIds.add(p.id);
+          selected = p;
+          render();
+        });
+        viewport.appendChild(node);
+      });
+      renderDetails();
+    }
+
+    function escapeXml(text) {
+      return String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function setCodeModal(open) {
+      codeModal.classList.toggle('open', open);
+    }
+
+    function openCodeModal() {
+      if (!selected) return;
+      codeModalTitle.textContent = `${iterationName(selected)} code`;
+      codeModalBody.textContent = selected.code || '';
+      setCodeModal(true);
+    }
+
+    function bestProgram() {
+      return byId.get(bestId) || programs.reduce(
+        (a, b) => (combinedScore(a) ?? -Infinity) >= (combinedScore(b) ?? -Infinity) ? a : b,
+        programs[0]
+      );
+    }
+
+    function renderStats() {
+      const best = bestProgram();
+      stats.innerHTML = [
+        ['Programs', DATA.program_count || programs.length],
+        ['Best score', best ? fmt(combinedScore(best), 6) : 'n/a'],
+        ['Max depth', maxDepth],
+        ['Best iter', best ? iterationName(best) : 'n/a']
+      ].map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+    }
+
+    function renderInlineMarkdown(text) {
+      // Order matters: escape first, then apply inline transforms on escaped output.
+      let html = escapeXml(text);
+      html = html.replace(/`([^`]+?)`/g, (_, code) => `<code>${code}</code>`);
+      html = html.replace(/\*\*([^*]+?)\*\*/g, (_, b) => `<strong>${b}</strong>`);
+      html = html.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, (_, pre, em) => `${pre}<em>${em}</em>`);
+      return html;
+    }
+
+    function renderMarkdownBlock(markdown) {
+      const text = String(markdown || '').trim();
+      if (!text) return '';
+      const lines = text.split(/\r?\n/);
+      const parts = [];
+      let bullets = null;
+      let paragraph = null;
+      const flushBullets = () => { if (bullets) { parts.push(`<ul>${bullets.join('')}</ul>`); bullets = null; } };
+      const flushParagraph = () => {
+        if (paragraph && paragraph.length) {
+          parts.push(`<p>${renderInlineMarkdown(paragraph.join(' '))}</p>`);
+        }
+        paragraph = null;
+      };
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) { flushBullets(); flushParagraph(); continue; }
+        if (line.startsWith('#')) {
+          flushBullets(); flushParagraph();
+          const stripped = line.replace(/^#+\s*/, '');
+          parts.push(`<h4>${renderInlineMarkdown(stripped)}</h4>`);
+          continue;
+        }
+        const bulletMatch = line.match(/^(?:[-*•]|\d+\.)\s+(.*)$/);
+        if (bulletMatch) {
+          flushParagraph();
+          if (!bullets) bullets = [];
+          bullets.push(`<li>${renderInlineMarkdown(bulletMatch[1])}</li>`);
+          continue;
+        }
+        flushBullets();
+        if (!paragraph) paragraph = [];
+        paragraph.push(line);
+      }
+      flushBullets();
+      flushParagraph();
+      return parts.join('');
+    }
+
+    function renderSummarySection(title, markdown) {
+      const html = renderMarkdownBlock(markdown);
+      if (!html) return '';
+      return `<div class="section-head"><h3>${escapeXml(title)}</h3></div>
+              <div class="summary-block">${html}</div>`;
+    }
+
+    function renderDetails() {
+      renderStats();
+      if (!selected) {
+        details.innerHTML = '<p class="empty">Select a node to inspect the program.</p>';
+        return;
+      }
+      const parent = selected.parent_id && byId.get(selected.parent_id);
+      const parentScore = selected.parent_metrics && selected.parent_metrics.combined_score;
+      const selectedScore = combinedScore(selected);
+      const delta = selectedScore !== null && Number.isFinite(Number(parentScore)) ? selectedScore - Number(parentScore) : null;
+      const coreFields = [
+        ['Score', fmt(selectedScore, 9)],
+        ['Iteration', iterationName(selected)],
+        ['Depth', fmt(selected.depth, 0)],
+        ['Parent', parent ? iterationName(parent) : 'n/a'],
+        ['Delta vs parent', delta === null ? 'n/a' : fmt(delta, 9)],
+        ['Children', fmt((selected.children_ids || []).length, 0)],
+        ['Language', selected.language || 'n/a'],
+        ['Program id', { __html: `<code>${escapeXml(selected.id)}</code>` }],
+        ['Changes', selected.changes || 'Initial program']
+      ];
+      const metricFields = Object.entries(selected.metrics || {})
+        .sort(([a], [b]) => (a === 'combined_score' ? -1 : b === 'combined_score' ? 1 : a.localeCompare(b)))
+        .map(([key, value]) => [key, fmt(value, typeof value === 'number' ? 9 : 6)]);
+      const metricRows = metricFields.length ? fieldRows(metricFields) : '<div class="field"><span>Metrics</span><span>n/a</span></div>';
+      const llmSummary = selected.llm_summary || null;
+      const summarySections = llmSummary ? `
+    ${renderSummarySection(
+      `LLM summary of solution ${llmSummary.label || iterationName(selected)}`,
+      llmSummary.summary_markdown,
+    )}
+    ${selected.parent_id ? renderSummarySection(
+      'Differences from the parent solution', llmSummary.diff_markdown,
+    ) : ''}
+  ` : '';
+      details.innerHTML = `
+    <h2>${selected.id === bestId ? 'Best Program' : 'Program'}</h2>
+    <div class="id">${selected.id}</div>
+    <div class="section-head"><h3>Program Info</h3></div>
+    <div class="fields">${fieldRows(coreFields)}</div>
+    <div class="section-head"><h3>Task Metrics</h3></div>
+    <div class="fields">${metricRows}</div>
+    ${summarySections}
+    <div class="section-head"><h3>Code</h3><button class="small-button" id="openCodeModal">Full screen</button></div>
+    <pre><code>${escapeXml(selected.code || '')}</code></pre>
+  `;
+      document.getElementById('openCodeModal').addEventListener('click', openCodeModal);
+    }
+
+    collapseAllButton.addEventListener('click', () => {
+      if (collapsedIds.size) collapsedIds.clear();
+      else collapsedIds = new Set(programs.filter(p => p.children.length).map(p => p.id));
+      selected = roots[0] || selected;
+      render();
+    });
+    resetButton.addEventListener('click', () => {
+      transform = { x: 40, y: 48, k: 1 };
+      collapsedIds.clear();
+      selected = roots[0] || programs[0];
+      render();
+    });
+    document.getElementById('closeCodeModal').addEventListener('click', () => setCodeModal(false));
+    codeModal.addEventListener('click', event => {
+      if (event.target === codeModal) setCodeModal(false);
+    });
+    window.addEventListener('keydown', event => {
+      if (event.key === 'Escape') setCodeModal(false);
+    });
+
+    let drag = null;
+    svg.addEventListener('mousedown', event => {
+      if (event.button !== 0) return;
+      drag = { x: event.clientX, y: event.clientY, tx: transform.x, ty: transform.y, moved: false };
+      svg.classList.add('dragging');
+    });
+    window.addEventListener('mousemove', event => {
+      if (!drag) return;
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      if (Math.hypot(dx, dy) > DRAG_THRESHOLD) drag.moved = true;
+      const m = treeUserPerCssPx();
+      transform.x = drag.tx + dx * m;
+      transform.y = drag.ty + dy * m;
+      applyTransform();
+    });
+    window.addEventListener('mouseup', () => {
+      drag = null;
+      svg.classList.remove('dragging');
+    });
+    svg.addEventListener('wheel', event => {
+      event.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const m = treeUserPerCssPx();
+      const pivot = { x: (event.clientX - rect.left) * m, y: (event.clientY - rect.top) * m };
+      const oldK = transform.k;
+      const nextK = Math.min(3, Math.max(0.25, oldK * (event.deltaY > 0 ? 0.9 : 1.1)));
+      const r = nextK / oldK;
+      transform.x = pivot.x - (pivot.x - transform.x) * r;
+      transform.y = pivot.y - (pivot.y - transform.y) * r;
+      transform.k = nextK;
+      render();
+    }, { passive: false });
+
+    colorMinInput.addEventListener('change', () => { colorScaleAuto = false; render(); });
+    colorMaxInput.addEventListener('change', () => { colorScaleAuto = false; render(); });
+    colorScaleResetBtn.addEventListener('click', () => { colorScaleAuto = true; render(); });
+
+    render();
+  </script>
+</body>
+
+</html>
