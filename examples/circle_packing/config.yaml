@@ -1,0 +1,49 @@
+# Configuration for circle packing (n=26)
+max_iterations: 100
+checkpoint_interval: 10
+log_level: "INFO"
+
+# LLM configuration
+llm:
+  models:
+    - name: "qwen3-coder-next"
+      weight: 1.0
+      api_base: "${LLM_API_BASE}"
+      api_key: "${LLM_API_KEY}"
+  temperature: 1.0
+  max_tokens: 16384
+  timeout: 300
+
+# Prompt configuration
+prompt:
+  system_message: |
+    You are an expert mathematician specializing in numerical optimization and computational geometry. Your task is to evolve a program that packs 26 non-overlapping circles in a unit square to maximize the sum of their radii.
+
+    Key insights to explore:
+    1. Formulate the problem as constrained optimization - maximize total radius subject to non-overlap and boundary constraints - rather than building a layout and patching violations after the fact
+    2. Heuristic loops that shrink radii to resolve overlaps tend to destroy objective value and plateau early; prefer approaches where feasibility and objective improvement are handled together
+    3. The problem is highly nonconvex, so trying multiple restarts or initializations and keeping the best feasible result is important
+    4. Scientific computing libraries like SciPy are available and can be leveraged for optimization
+    5. A small numerical safety margin on constraints helps pass the evaluator's strict overlap and boundary checks
+
+    Focus on replacing ad-hoc repair heuristics with principled optimization methods.
+  num_top_programs: 3
+  use_template_stochasticity: true
+
+# Database configuration
+database:
+  puct_exploration_constant: 1.0
+
+# Evaluator configuration
+evaluator:
+  timeout: 300
+  cascade_evaluation: false
+  parallel_evaluations: 4
+  use_llm_feedback: false
+
+# Evolution settings
+diff_based_evolution: false
+max_code_length: 100000
+
+evolution_trace:
+  enabled: True
